@@ -30,6 +30,7 @@ import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.openflow
  */
 public class SwitchConnectionProviderFactoryImpl implements SwitchConnectionProviderFactory {
 
+    // 会在openflowjava-blueprint-config中的blueprint调用此方法
     @Override
     public SwitchConnectionProvider newInstance(SwitchConnectionConfig config) {
         SwitchConnectionProviderImpl switchConnectionProviderImpl = new SwitchConnectionProviderImpl();
@@ -48,6 +49,7 @@ public class SwitchConnectionProviderFactoryImpl implements SwitchConnectionProv
         return null;
     }
 
+    // 封装connection的配置对象
     private static class ConnectionConfigurationImpl implements ConnectionConfiguration {
         private final SwitchConnectionConfig config;
         private InetAddress address;

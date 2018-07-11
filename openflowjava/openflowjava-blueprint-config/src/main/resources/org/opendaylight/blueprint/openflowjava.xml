@@ -2,6 +2,15 @@
 <blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0"
            xmlns:odl="http://opendaylight.org/xmlns/blueprint/v1.0.0">
 
+  <!-- 引用在其他bundle实例化了的服务
+
+        在openflow-protocol-impl.xml中已经定义了servcie：
+        <bean id="switchConnFactory" class="org.opendaylight.openflowjava.protocol.impl.core.SwitchConnectionProviderFactoryImpl"/>
+        <service ref="switchConnFactory" interface="org.opendaylight.openflowjava.protocol.spi.connection.SwitchConnectionProviderFactory"
+          odl:type="default"/>
+
+        在这里直接使用 reference引用
+  -->
   <reference id="switchConnectionProviderFactory" interface="org.opendaylight.openflowjava.protocol.spi.connection.SwitchConnectionProviderFactory"
           odl:type="default"/>
 
@@ -11,10 +20,12 @@
       list-key-value="openflow-switch-connection-provider-default-impl">
   </odl:clustered-app-config>
 
+  <!-- 调用引用service SwitchConnectionProviderFactoryImpl的 newInstance() -->
   <bean id="defaultSwitchConnProvider" factory-ref="switchConnectionProviderFactory" factory-method="newInstance">
     <argument ref="defaultSwitchConnConfig"/>
   </bean>
 
+  <!-- 定义了defaultSwitchConnProvider作为一个service -->
   <service ref="defaultSwitchConnProvider" interface="org.opendaylight.openflowjava.protocol.spi.connection.SwitchConnectionProvider"
           odl:type="openflow-switch-connection-provider-default-impl"/>
 
@@ -24,10 +35,12 @@
       list-key-value="openflow-switch-connection-provider-legacy-impl">
   </odl:clustered-app-config>
 
+  <!-- 调用引用service SwitchConnectionProviderFactoryImpl的 newInstance() -->
   <bean id="legacySwitchConnProvider" factory-ref="switchConnectionProviderFactory" factory-method="newInstance">
     <argument ref="legacySwitchConnConfig"/>
   </bean>
 
+  <!-- 定义了legacySwitchConnProvider作为一个service -->
   <service ref="legacySwitchConnProvider" interface="org.opendaylight.openflowjava.protocol.spi.connection.SwitchConnectionProvider"
           odl:type="openflow-switch-connection-provider-legacy-impl"/>
 

@@ -66,6 +66,7 @@ import org.opendaylight.openflowjava.nx.codec.match.UdpSrcCodec;
 public class NiciraExtensionsRegistrator implements AutoCloseable {
     private final NiciraExtensionCodecRegistrator registrator;
 
+    // 实际上是给switch connection provider注册各个action及match域的序列化器
     public NiciraExtensionsRegistrator(NiciraExtensionCodecRegistrator registrator) {
         this.registrator = Preconditions.checkNotNull(registrator);
 

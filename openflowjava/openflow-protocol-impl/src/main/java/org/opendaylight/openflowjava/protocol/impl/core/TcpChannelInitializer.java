@@ -50,6 +50,19 @@ public class TcpChannelInitializer extends ProtocolChannelInitializer<SocketChan
         connectionAdapterFactory = connAdaptorFactory;
     }
 
+    /*
+        应该是在SwitchConnectionProviderImpl的createAndConfigureServer方法调用 `connectionInitializer.run()` 时最终回调此方法
+        过程：
+            1.connectionInitializer.run()
+            2.在TcpConnectionInitializer中run()是调用
+                bootstrap.group(workerGroup).channel(NioSocketChannel.class)
+                    .handler(channelInitializer);
+
+            3.这里应该是在netty底层调用，调用到TcpHandler的run()方法，而它run()中有`.childHandler(channelInitializer)`
+            4.childHandler()设置了当前对象
+
+            最终当远程sw连接上tcp端口，建立连接时channel初始化，就会调用当前方法. 其效果会调用openflowPlugin的ConnectionManageImpl onSwitchConnected方法
+     */
     @Override
     @SuppressWarnings("checkstyle:IllegalCatch")
     protected void initChannel(final SocketChannel ch) {
@@ -72,8 +85,10 @@ public class TcpChannelInitializer extends ProtocolChannelInitializer<SocketChan
         connectionFacade = connectionAdapterFactory.createConnectionFacade(ch, null, useBarrier());
         try {
             LOG.debug("Calling OF plugin: {}", getSwitchConnectionHandler());
+            // 当channel建立，调用ConnectionManageImpl的onSwitchConnected方法
             getSwitchConnectionHandler().onSwitchConnected(connectionFacade);
             connectionFacade.checkListeners();
+
             ch.pipeline().addLast(PipelineHandlers.IDLE_HANDLER.name(),
                     new IdleHandler(getSwitchIdleTimeout(), TimeUnit.MILLISECONDS));
             boolean tlsPresent = false;

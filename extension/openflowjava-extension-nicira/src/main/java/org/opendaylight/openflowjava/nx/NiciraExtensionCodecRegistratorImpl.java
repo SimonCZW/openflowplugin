@@ -49,6 +49,7 @@ public class NiciraExtensionCodecRegistratorImpl implements NiciraExtensionCodec
         this.providers = providers;
         ActionDeserializer of10ActionDeserializer = new ActionDeserializer(EncodeConstants.OF10_VERSION_ID);
         ActionDeserializer of13ActionDeserializer = new ActionDeserializer(EncodeConstants.OF13_VERSION_ID);
+        // 注册 openflow1.0和1.3 action序列化器
         registerActionDeserializer(ActionDeserializer.OF10_DESERIALIZER_KEY, of10ActionDeserializer);
         registerActionDeserializer(ActionDeserializer.OF13_DESERIALIZER_KEY, of13ActionDeserializer);
     }
@@ -58,6 +59,11 @@ public class NiciraExtensionCodecRegistratorImpl implements NiciraExtensionCodec
             provider.registerActionDeserializer(key, deserializer);
         }
     }
+
+    /*
+        后面的这些register方法，都会被NiciraExtensionsRegistrator.java中调用
+        在openflowjava-extension-nicira.java中会将NiciraExtensionCodecRegistratorImpl传递给 NiciraExtensionsRegistrator
+     */
 
     /*
      * (non-Javadoc)

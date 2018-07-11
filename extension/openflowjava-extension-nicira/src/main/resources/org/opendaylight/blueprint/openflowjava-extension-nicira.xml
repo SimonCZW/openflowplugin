@@ -5,6 +5,9 @@
            odl:use-default-for-reference-types="true">
 
 
+    <!--
+        reference引用在openflowjava blueprint openflowjava.xml(实例化了switchConnectionProvider)中定义的switchConnectionProvider service
+    -->
     <reference id="defaultSwitchConnProvider"
                interface="org.opendaylight.openflowjava.protocol.spi.connection.SwitchConnectionProvider"
                odl:type="openflow-switch-connection-provider-default-impl"/>
@@ -13,6 +16,10 @@
                interface="org.opendaylight.openflowjava.protocol.spi.connection.SwitchConnectionProvider"
                odl:type="openflow-switch-connection-provider-legacy-impl"/>
 
+    <!--
+        实例化NiciraExtensionCodecRegistratorImpl, 传入switch connection provider
+            实例化时会调用SwitchConnProvider.registerActionDeserializer()注册openflow1.0/1.3的action deserializer
+    -->
     <bean id="niciraExtensionCodecRegistrator"
           class="org.opendaylight.openflowjava.nx.NiciraExtensionCodecRegistratorImpl"
           destroy-method="close">
@@ -24,12 +31,21 @@
         </argument>
     </bean>
 
+    <!--
+        将上面实例化的niciraExtensionCodecRegistrator,传递给NiciraExtensionsRegistrator
+
+        会在NiciraExtensionsRegistrator中，通过niciraExtensionCodecRegistrator给switch connection provider注册(register)
+            注册各种action序列化器、match序列化器
+    -->
     <bean id="niciraExtensionsRegistrator"
           class="org.opendaylight.openflowjava.nx.NiciraExtensionsRegistrator"
           destroy-method="close">
         <argument ref="niciraExtensionCodecRegistrator"/>
     </bean>
 
+    <!--
+        将NiciraExtensionCodecRegistrator注册为service
+    -->
     <service ref="niciraExtensionCodecRegistrator"
              interface="org.opendaylight.openflowjava.nx.api.NiciraExtensionCodecRegistrator"/>
 </blueprint>

@@ -33,12 +33,13 @@ public class ChannelInitializerFactory {
      * @return PublishingChannelInitializer that initializes new channels
      */
     public TcpChannelInitializer createPublishingChannelInitializer() {
+        // 创建
         final TcpChannelInitializer initializer = new TcpChannelInitializer();
         initializer.setSwitchIdleTimeout(switchIdleTimeOut);
         initializer.setDeserializationFactory(deserializationFactory);
         initializer.setSerializationFactory(serializationFactory);
         initializer.setTlsConfiguration(tlsConfig);
-        initializer.setSwitchConnectionHandler(switchConnectionHandler);
+        initializer.setSwitchConnectionHandler(switchConnectionHandler); //这里传入的是ConnectionManagerImpl
         initializer.setUseBarrier(useBarrier);
         return initializer;
     }

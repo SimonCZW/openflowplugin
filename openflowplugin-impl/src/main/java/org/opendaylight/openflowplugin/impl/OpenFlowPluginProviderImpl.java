@@ -154,6 +154,9 @@ public class OpenFlowPluginProviderImpl implements
         startSwitchConnections();
     }
 
+    /*
+        在下面initialize() 最后调用
+     */
     private void startSwitchConnections() {
         Futures.addCallback(Futures.allAsList(switchConnectionProviders.stream().map(switchConnectionProvider -> {
             // Inject OpenFlowPlugin custom serializers and deserializers into OpenFlowJava
@@ -165,8 +168,14 @@ public class OpenFlowPluginProviderImpl implements
                 DeserializerInjector.revertDeserializers(switchConnectionProvider);
             }
 
+            // 给switch connection provider设置ConnectionManagerImpl()
+            //    switch connection provider是在openflowjava中的openflowjava-blueprint-config的openflowjava.xml blueprint创建的
             // Set handler of incoming connections and start switch connection provider
             switchConnectionProvider.setSwitchConnectionHandler(connectionManager);
+            /*
+                调用startup, 效果: 创建tcp/udp的server监听6633、6653端口
+                    当有sw连接时，调用TcpChannelInitializer的initChannel()方法，会调用调用openflowplugin的ConnectionManagerImpl onSwitchConnected()方法
+             */
             return switchConnectionProvider.startup();
         }).collect(Collectors.toSet())), new FutureCallback<List<Boolean>>() {
             @Override
@@ -210,8 +219,12 @@ public class OpenFlowPluginProviderImpl implements
         return listListenableFuture;
     }
 
+    /*
+        OpenFlowPluginProviderFactoryImpl创建OpenFlowPluginProvider就会调用此方法
+     */
     @Override
     public void initialize() {
+        // 注册MBean监听
         registerMXBean(MESSAGE_INTELLIGENCE_AGENCY, MESSAGE_INTELLIGENCE_AGENCY_MX_BEAN_NAME);
 
         // TODO: copied from OpenFlowPluginProvider (Helium) misusesing the old way of distributing extension converters
@@ -221,16 +234,18 @@ public class OpenFlowPluginProviderImpl implements
         // Creates a thread pool that creates new threads as needed, but will reuse previously
         // constructed threads when they are available.
         // Threads that have not been used for x seconds are terminated and removed from the cache.
+        // 创建线程池
         executorService = MoreExecutors.listeningDecorator(new ThreadPoolLoggingExecutor(
                 config.getThreadPoolMinThreads(),
                 config.getThreadPoolMaxThreads().getValue(),
                 config.getThreadPoolTimeout(),
                 TimeUnit.SECONDS, new SynchronousQueue<>(), POOL_NAME));
 
+        // 创建Device manager
         deviceManager = new DeviceManagerImpl(
                 config,
                 dataBroker,
-                getMessageIntelligenceAgency(),
+                getMessageIntelligenceAgency(), // MessageSpy: MessageIntelligenceAgencyImpl 消息监听Impl
                 notificationPublishService,
                 hashedWheelTimer,
                 convertorManager,
@@ -254,6 +269,7 @@ public class OpenFlowPluginProviderImpl implements
 
         roleManager = new RoleManagerImpl(hashedWheelTimer, config);
 
+        // 创建context chain holder封装所有服务
         contextChainHolder = new ContextChainHolderImpl(
                 executorService,
                 singletonServicesProvider,
@@ -265,11 +281,15 @@ public class OpenFlowPluginProviderImpl implements
         contextChainHolder.addManager(rpcManager);
         contextChainHolder.addManager(roleManager);
 
+        // 创建connection Manger
+        //  传入contextChainHolder
         connectionManager = new ConnectionManagerImpl(config, executorService);
         connectionManager.setDeviceConnectedHandler(contextChainHolder);
         connectionManager.setDeviceDisconnectedHandler(contextChainHolder);
 
+        // 给device manager设置contextChain
         deviceManager.setContextChainHolder(contextChainHolder);
+        // 效果是给deviceManage中的消息监听器MessageIntelligenceAgencyImpl调度线程运行
         deviceManager.initialize();
     }
 

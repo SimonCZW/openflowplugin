@@ -47,6 +47,7 @@ public class TcpConnectionInitializer implements ServerFacade,
         this.isEpollEnabled = isEpollEnabled;
     }
 
+    // 这里应该是调用TcpHandler中的run()方法
     @Override
     public void run() {
         bootstrap = new Bootstrap();
@@ -85,6 +86,9 @@ public class TcpConnectionInitializer implements ServerFacade,
         }
     }
 
+    /*
+        在SwitchConnectionProviderImpl中调用, 传入的是 带有ConnnectionManagerImpl的channelInitializer
+     */
     public void setChannelInitializer(TcpChannelInitializer channelInitializer) {
         this.channelInitializer = channelInitializer;
     }

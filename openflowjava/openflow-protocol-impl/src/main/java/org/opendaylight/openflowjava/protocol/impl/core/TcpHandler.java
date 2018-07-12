@@ -80,6 +80,9 @@ public class TcpHandler implements ServerFacade {
         isOnlineFuture = SettableFuture.create();
     }
 
+    /*
+        应该是在SwitchConnectionProviderImpl的createAndConfigureServer方法调用 `connectionInitializer.run()` 时最终回调此方法
+     */
     /**
      * Starts server on selected port.
      */
@@ -101,7 +104,7 @@ public class TcpHandler implements ServerFacade {
             bootstrap.group(bossGroup, workerGroup)
                     .channel(socketChannelClass)
                     .handler(new LoggingHandler(LogLevel.DEBUG))
-                    .childHandler(channelInitializer)
+                    .childHandler(channelInitializer) // 这里应该调用的是TcpChannelInitializer的initChannel方法
                     .option(ChannelOption.SO_BACKLOG, 128)
                     .option(ChannelOption.SO_REUSEADDR, true)
                     .childOption(ChannelOption.SO_KEEPALIVE, true)
@@ -178,6 +181,7 @@ public class TcpHandler implements ServerFacade {
         return address;
     }
 
+    // SwitchConnectionProviderImpl中设置，此对象有ConnectionManagerImpl的引用
     public void setChannelInitializer(TcpChannelInitializer channelInitializer) {
         this.channelInitializer = channelInitializer;
     }
@@ -187,6 +191,9 @@ public class TcpHandler implements ServerFacade {
         this.threadConfig = threadConfig;
     }
 
+    /*
+        在SwitchConnectionProviderImpl中创建TcpHandler后调用，创建底层netty的channel相关对象
+     */
     /**
      * Initiate event loop groups.
      *
@@ -240,6 +247,7 @@ public class TcpHandler implements ServerFacade {
             LOG.debug("Epoll initiation failed");
         }
 
+        // 如果epoll event loop groups创建失败则创建nio event loop group（保底）
         //Fallback mechanism
         initiateNioEventLoopGroups(threadConfiguration);
     }

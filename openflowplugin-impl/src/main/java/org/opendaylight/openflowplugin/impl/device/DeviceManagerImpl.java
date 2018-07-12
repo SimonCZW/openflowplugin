@@ -106,6 +106,8 @@ public class DeviceManagerImpl implements DeviceManager, ExtensionConverterProvi
 
     }
 
+    // 在OpenflowPluginProviderImpl的initialize中调用，调度线程池给消息监听器
+    // messageSpy是在OpenflowPluginProviderImpl创建时传入的是：MessageIntelligenceAgencyImpl-消息监听Impl
     @Override
     public void initialize() {
         spyPool.scheduleAtFixedRate(messageSpy, SPY_RATE, SPY_RATE, TimeUnit.SECONDS);

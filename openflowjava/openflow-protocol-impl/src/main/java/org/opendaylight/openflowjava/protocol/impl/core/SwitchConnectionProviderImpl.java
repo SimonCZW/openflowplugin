@@ -71,6 +71,9 @@ public class SwitchConnectionProviderImpl implements SwitchConnectionProvider, C
     private final DeserializationFactory deserializationFactory;
     private TcpConnectionInitializer connectionInitializer;
 
+    /*
+       在openflowjava.xml创建了SwitchConnectionProvider，注册为service等其他bundle在blueprint中调用
+    */
     public SwitchConnectionProviderImpl(ConnectionConfiguration connConfig) {
         this.connConfig = connConfig;
         serializerRegistry = new SerializerRegistryImpl();
@@ -84,6 +87,10 @@ public class SwitchConnectionProviderImpl implements SwitchConnectionProvider, C
         deserializationFactory = new DeserializationFactory(deserializerRegistry);
     }
 
+    /*
+        在OpenflowPluginProviderImpl的startSwitchConnections()中被调用 (是在OpenflowPluginProvider创建的调用链中调用)
+        传入的switchConnectionHandler是：ConnectionManagerImpl
+     */
     @Override
     public void setSwitchConnectionHandler(final SwitchConnectionHandler switchConnectionHandler) {
         LOG.debug("setSwitchConnectionHandler");
@@ -100,16 +107,25 @@ public class SwitchConnectionProviderImpl implements SwitchConnectionProvider, C
         return serverFacade.shutdown();
     }
 
+    /*
+        在OpenflowPluginProviderImpl的startSwitchConnections()中被调用 (是在OpenflowPluginProvider创建的调用链中调用)
+     */
     @Override
     @SuppressWarnings("checkstyle:IllegalCatch")
     public ListenableFuture<Boolean> startup() {
         LOG.debug("Startup summoned");
         ListenableFuture<Boolean> result = null;
         try {
+            /*
+                效果: 创建tcp/udp的server监听6633、6653端口
+                    1.创建TcpServer，后面最终会调用其run()方法
+                    2.当有连接时，调用TcpChannelInitializer的initChannel()方法，会调用调用openflowplugin的ConnectionManagerImpl
+             */
             serverFacade = createAndConfigureServer();
             if (switchConnectionHandler == null) {
                 throw new IllegalStateException("SwitchConnectionHandler is not set");
             }
+            // 创建一个线程运行ServerFacade
             new Thread(serverFacade).start();
             result = serverFacade.getIsOnlineFuture();
         } catch (RuntimeException e) {
@@ -120,10 +136,17 @@ public class SwitchConnectionProviderImpl implements SwitchConnectionProvider, C
         return result;
     }
 
+    /*
+        创建tcp/udp的server监听6633、6653端口
+            1.创建TcpServer，后面最终会调用其run()方法
+            2.当有连接时，调用TcpChannelInitializer的initChannel()方法，会调用调用openflowplugin的ConnectionManagerImpl
+     */
     private ServerFacade createAndConfigureServer() {
         LOG.debug("Configuring ..");
         ServerFacade server = null;
+        // 创建channel factory并配置
         final ChannelInitializerFactory factory = new ChannelInitializerFactory();
+        //设置ConnectionManagerImpl: 应该是这里当有switch连上了就会触发ConnectionManagerImpl的onSwitchConnected()方法
         factory.setSwitchConnectionHandler(switchConnectionHandler);
         factory.setSwitchIdleTimeout(connConfig.getSwitchIdleTimeout());
         factory.setTlsConfig(connConfig.getTlsConfiguration());
@@ -138,14 +161,25 @@ public class SwitchConnectionProviderImpl implements SwitchConnectionProvider, C
         boolean isEpollEnabled = Epoll.isAvailable();
 
         if (TransportProtocol.TCP.equals(transportProtocol) || TransportProtocol.TLS.equals(transportProtocol)) {
+            // 创建TCP handler用于监听地址及端口
             server = new TcpHandler(connConfig.getAddress(), connConfig.getPort());
+            // 创建TCP publishing channel initializer: 这里创建的initializer是有ConnectionManagerImpl的的引用
             final TcpChannelInitializer channelInitializer = factory.createPublishingChannelInitializer();
             ((TcpHandler) server).setChannelInitializer(channelInitializer);
+            // 会创建底层netty相关的channel对象
             ((TcpHandler) server).initiateEventLoopGroups(connConfig.getThreadConfiguration(), isEpollEnabled);
 
+            // 获取上一步创建的netty底层channel相关对象：EventLoopGroup
             final EventLoopGroup workerGroupFromTcpHandler = ((TcpHandler) server).getWorkerGroup();
+            // 创建TcpConnectionInitializer
             connectionInitializer = new TcpConnectionInitializer(workerGroupFromTcpHandler, isEpollEnabled);
+            // 设置上面的channelInitializer(带有ConnectionManagerImpl引用)
             connectionInitializer.setChannelInitializer(channelInitializer);
+            /*
+             会调用TcpHandler run()方法, 最终效果会监听tcp端口
+                TcpHandler run()中设置了再调用到TcpChannelInitializer的initChannel()方法;
+                当远程sw连上就会调用initChannel()，其会调用openflowplugin的ConnectionManagerImpl
+             */
             connectionInitializer.run();
         } else if (TransportProtocol.UDP.equals(transportProtocol)) {
             server = new UdpHandler(connConfig.getAddress(), connConfig.getPort());
@@ -177,6 +211,8 @@ public class SwitchConnectionProviderImpl implements SwitchConnectionProvider, C
         return deserializerRegistry.unregisterDeserializer((MessageCodeKey) key);
     }
 
+    // 在 org.opendaylight.openflowjava.nx.NiciraExtensionCodecRegistratorImpl造器中会调用注册serializer
+    // 以及在 NiciraExtensionsRegistrator中注册
     @Override
     public void registerActionSerializer(final ActionSerializerKey<?> key,
             final OFGeneralSerializer serializer) {

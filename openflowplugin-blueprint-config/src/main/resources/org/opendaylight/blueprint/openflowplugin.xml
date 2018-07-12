@@ -41,6 +41,7 @@
                                update-method="update"/>
     </bean>
 
+
     <bean id="ofPluginDiagstatusProvider"
           class="org.opendaylight.openflowplugin.api.diagstatus.OpenflowPluginDiagStatusProvider">
         <argument ref="diagStatusService"/>
@@ -56,6 +57,9 @@
 
     <service ref="configurationService" interface="org.opendaylight.openflowplugin.api.openflow.configuration.ConfigurationService"/>
 
+    <!--
+        实际上是在这里创建openflowPluginProvider
+    -->
     <bean id="openflowPluginProvider"
           factory-ref="openflowPluginProviderFactory"
           factory-method="newInstance"
@@ -77,6 +81,7 @@
         <argument ref="systemReadyMonitor"/>
     </bean>
 
+    <!-- openflowpluginProvider作为service -->
     <service ref="openflowPluginProvider" odl:type="openflow-plugin-provider-impl">
         <interfaces>
             <value>org.opendaylight.openflowplugin.api.openflow.OpenFlowPluginProvider</value>

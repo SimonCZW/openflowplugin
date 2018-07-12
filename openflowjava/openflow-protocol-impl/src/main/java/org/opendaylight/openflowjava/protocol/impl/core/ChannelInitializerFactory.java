@@ -39,7 +39,7 @@ public class ChannelInitializerFactory {
         initializer.setDeserializationFactory(deserializationFactory);
         initializer.setSerializationFactory(serializationFactory);
         initializer.setTlsConfiguration(tlsConfig);
-        initializer.setSwitchConnectionHandler(switchConnectionHandler);
+        initializer.setSwitchConnectionHandler(switchConnectionHandler); //这里传入的是ConnectionManagerImpl
         initializer.setUseBarrier(useBarrier);
         initializer.setChannelOutboundQueueSize(channelOutboundQueueSize);
         return initializer;

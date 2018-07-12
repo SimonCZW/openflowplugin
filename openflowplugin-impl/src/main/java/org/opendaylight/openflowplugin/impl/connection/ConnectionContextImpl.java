@@ -100,6 +100,9 @@ public class ConnectionContextImpl implements ConnectionContext {
         this.deviceDisconnectedHandler = deviceDisconnectedHandler;
     }
 
+    /*
+        在handshakeListenerImpl.onHandshakeSuccessful()调用
+     */
     @Override
     public void setFeatures(final FeaturesReply newFeaturesReply) {
         this.featuresReply = newFeaturesReply;
@@ -239,6 +242,9 @@ public class ConnectionContextImpl implements ConnectionContext {
         return this.deviceInfo;
     }
 
+    /*
+        HandshakeListenerImpl.onHandshakeSuccessful()调用
+     */
     @Override
     public void handshakeSuccessful() {
         Preconditions.checkNotNull(nodeId, "Cannot create DeviceInfo if 'NodeId' is not set!");
@@ -247,7 +253,7 @@ public class ConnectionContextImpl implements ConnectionContext {
                 nodeId,
                 DeviceStateUtil.createNodeInstanceIdentifier(nodeId),
                 featuresReply.getVersion(),
-                featuresReply.getDatapathId(),
+                featuresReply.getDatapathId(), //拿到datapath id
                 outboundQueueProvider);
     }
 

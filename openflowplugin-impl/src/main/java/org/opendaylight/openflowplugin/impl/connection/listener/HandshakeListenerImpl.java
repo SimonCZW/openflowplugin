@@ -56,15 +56,20 @@ public class HandshakeListenerImpl implements HandshakeListener {
         }
         this.handshakeContext.close();
         connectionContext.changeStateToWorking();
+        // 设置connectionContext的features信息
         connectionContext.setFeatures(featureOutput);
+        // nodeId是datapathId
         connectionContext.setNodeId(InventoryDataServiceUtil.nodeIdFromDatapathId(featureOutput.getDatapathId()));
+        // 效果：connectionContext中new DeviceInfoImpl
         connectionContext.handshakeSuccessful();
 
         // fire barrier in order to sweep all handshake and posthandshake messages before continue
         final ListenableFuture<RpcResult<BarrierOutput>> barrier = fireBarrier(version, 0L);
+        // barrier消息回调
         Futures.addCallback(barrier, addBarrierCallback(), MoreExecutors.directExecutor());
     }
 
+    // 上述barrier回调
     private FutureCallback<RpcResult<BarrierOutput>> addBarrierCallback() {
         return new FutureCallback<RpcResult<BarrierOutput>>() {
             @Override
@@ -75,6 +80,7 @@ public class HandshakeListenerImpl implements HandshakeListener {
                             connectionContext.getDeviceInfo());
                 }
                 try {
+                    // device连接成功: 调用ContextChainHolderImpl.deviceConnected()
                     ConnectionStatus connectionStatusResult = deviceConnectedHandler.deviceConnected(connectionContext);
                     if (connectionStatusResult != ConnectionStatus.MAY_CONTINUE) {
                         connectionContext.closeConnection(false);

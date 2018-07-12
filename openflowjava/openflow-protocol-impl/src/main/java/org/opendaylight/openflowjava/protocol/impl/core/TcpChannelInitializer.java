@@ -74,7 +74,15 @@ public class TcpChannelInitializer extends ProtocolChannelInitializer<SocketChan
                 getChannelOutboundQueueSize());
         try {
             LOG.debug("Calling OF plugin: {}", getSwitchConnectionHandler());
+
+            /*
+                调用ConnectionManageImpl的onSwitchConnected()效果:
+                1.设置ConnectionReadyListenerImpl, 提供onConnectionReady(). onConnectionReady()处理是:HandshakeManagerImpl.shake()
+                2.设置ofMessageListener(监听openflow消息处理)
+                3.设置SystemNotificationsListenerImpl, 提供onSwitchIdleEvent()方法, 当swich idle发送echo心跳消息
+             */
             getSwitchConnectionHandler().onSwitchConnected(connectionFacade);
+            // 检查上一步设置的3个listener是否存在
             connectionFacade.checkListeners();
             ch.pipeline().addLast(PipelineHandlers.IDLE_HANDLER.name(),
                     new IdleHandler(getSwitchIdleTimeout(), TimeUnit.MILLISECONDS));
@@ -101,6 +109,7 @@ public class TcpChannelInitializer extends ProtocolChannelInitializer<SocketChan
                 handshakeFuture.addListener(future -> finalConnectionFacade.fireConnectionReadyNotification());
                 ch.pipeline().addLast(PipelineHandlers.SSL_HANDLER.name(), ssl);
             }
+            // Decodes incoming messages into message frames.
             ch.pipeline().addLast(PipelineHandlers.OF_FRAME_DECODER.name(),
                     new OFFrameDecoder(connectionFacade, tlsPresent));
             ch.pipeline().addLast(PipelineHandlers.OF_VERSION_DETECTOR.name(), new OFVersionDetector());
@@ -110,9 +119,12 @@ public class TcpChannelInitializer extends ProtocolChannelInitializer<SocketChan
             final OFEncoder ofEncoder = new OFEncoder();
             ofEncoder.setSerializationFactory(getSerializationFactory());
             ch.pipeline().addLast(PipelineHandlers.OF_ENCODER.name(), ofEncoder);
+            // Delegates translated POJOs into MessageConsumer.
             ch.pipeline().addLast(PipelineHandlers.DELEGATING_INBOUND_HANDLER.name(),
                     new DelegatingInboundHandler(connectionFacade));
             if (!tlsPresent) {
+                // 如果没有配置tls加密
+                // 会调用ConnectionReadyListenerImpl.onConnectionReady()发起handshake
                 connectionFacade.fireConnectionReadyNotification();
             }
         } catch (RuntimeException e) {

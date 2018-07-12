@@ -131,6 +131,9 @@ public class DeviceManagerImpl implements DeviceManager, ExtensionConverterProvi
 
     }
 
+    /*
+        ContextChainHolderImpl中调用
+     */
     @Override
     public DeviceContext createContext(@Nonnull final ConnectionContext connectionContext) {
 

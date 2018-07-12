@@ -39,7 +39,7 @@ public interface ContextChainHolder extends
         ContextChainMastershipWatcher,
         DeviceDisconnectedHandler,
         DeviceRemovedHandler,
-        EntityOwnershipListener,
+        EntityOwnershipListener, //使用了EOS
         AutoCloseable {
 
     /**

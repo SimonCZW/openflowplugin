@@ -36,6 +36,13 @@ public class ConnectionReadyListenerImpl implements ConnectionReadyListener {
         this.handshakeContext = handshakeContext;
     }
 
+    /*
+        当connection准备好,调用:
+            1.会修改 connectionContext的状态为HANDSHAKING
+            2.创建 HandshakeStepWrapper(), 最终调用HandshakeManagerImpl.shake()
+
+        在TcpChannelInitializer的initchannel方法会调用ConnectionAdapterImpl.fireConnectionReadyNotification(),此方法会调用当前方法onConnectionReady()
+     */
     @Override
     @SuppressWarnings("checkstyle:IllegalCatch")
     public void onConnectionReady() {
@@ -48,8 +55,14 @@ public class ConnectionReadyListenerImpl implements ConnectionReadyListener {
             synchronized (connectionContext) {
                 if (connectionContext.getConnectionState() == null) {
                     connectionContext.changeStateToHandshaking();
+                    /*
+                        创建HandshakeStepWrapper(), 实际上是会调用HandshakeManagerImpl的shake()方法
+                        handshakeContext.getHandshakeManager(): HandshakeManagerImpl
+                        connectionContext.getConnectionAdapter()是底层TcpChannelInitializer传入的(封装当前连上的sw的channel)
+                     */
                     HandshakeStepWrapper handshakeStepWrapper = new HandshakeStepWrapper(
                             null, handshakeContext.getHandshakeManager(), connectionContext.getConnectionAdapter());
+                    // 调用线程运行
                     final Future<?> handshakeResult = handshakeContext.getHandshakePool().submit(handshakeStepWrapper);
 
                     try {

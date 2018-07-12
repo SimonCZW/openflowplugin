@@ -82,6 +82,12 @@ public class HandshakeManagerImpl implements HandshakeManager {
         this.deviceConnectionRateLimiter = deviceConnectionRateLimiter;
     }
 
+    /*
+        当connectionReady时,
+        会被HandshakeStepWrapper()调用(新线程中)
+
+        调用链根源是在TcpChannelInitializer中initChannel()会调用
+     */
     @Override
     @SuppressWarnings("checkstyle:IllegalCatch")
     public synchronized void shake(HelloMessage receivedHello) {
@@ -329,6 +335,7 @@ public class HandshakeManagerImpl implements HandshakeManager {
         LOG.debug("sending hello message: version{}, xid={}, version bitmap={}", helloVersion, helloXid,
                   MessageFactory.digVersions(helloInput.getElements()));
 
+        // 发送hello消息
         Future<RpcResult<Void>> helloResult = connectionAdapter.hello(helloInput);
 
         ListenableFuture<RpcResult<Void>> rpcResultListenableFuture = JdkFutureAdapters.listenInPoolThread(helloResult);
@@ -372,6 +379,7 @@ public class HandshakeManagerImpl implements HandshakeManager {
      * @param proposedVersion proposed openflow version
      * @param xid             transaction id
      */
+    // handshake版本后
     protected void postHandshake(final Short proposedVersion, final Long xid) {
         // set version
         version = proposedVersion;
@@ -402,6 +410,7 @@ public class HandshakeManagerImpl implements HandshakeManager {
                             LOG.trace("handshake SETTLED: version={}, datapathId={}, auxiliaryId={}",
                                       version, featureOutput.getDatapathId(),
                                       featureOutput.getAuxiliaryId());
+                            // 成功
                             handshakeListener.onHandshakeSuccessful(featureOutput, proposedVersion);
                         } else {
                             // handshake failed

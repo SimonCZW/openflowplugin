@@ -55,6 +55,9 @@ public class SystemNotificationsListenerImpl implements SystemNotificationsListe
         connectionContext.onConnectionClosed();
     }
 
+    /*
+        当switch idle调用此方法
+     */
     @Override
     public void onSwitchIdleEvent(final SwitchIdleEvent notification) {
         executorService.execute(this::executeOnSwitchIdleEvent);
@@ -66,14 +69,17 @@ public class SystemNotificationsListenerImpl implements SystemNotificationsListe
 
         final InetSocketAddress remoteAddress = connectionContext.getConnectionAdapter().getRemoteAddress();
 
+        // 当状态是WORKING处理
         if (ConnectionContext.CONNECTION_STATE.WORKING.equals(connectionContext.getConnectionState())) {
             FeaturesReply features = connectionContext.getFeatures();
             LOG.info("Switch Idle state occurred, node={}|auxId={}", remoteAddress, features.getAuxiliaryId());
+            // 设置状态为TIMEOUTING
             connectionContext.changeStateToTimeouting();
             EchoInputBuilder builder = new EchoInputBuilder();
             builder.setVersion(features.getVersion());
             builder.setXid(ECHO_XID.getValue());
 
+            // 发送echo消息
             Future<RpcResult<EchoOutput>> echoReplyFuture =
                     connectionContext.getConnectionAdapter().echo(builder.build());
 
@@ -81,6 +87,7 @@ public class SystemNotificationsListenerImpl implements SystemNotificationsListe
                 RpcResult<EchoOutput> echoReplyValue = echoReplyFuture.get(echoReplyTimeout, TimeUnit.MILLISECONDS);
                 if (echoReplyValue.isSuccessful()
                         && Objects.equals(echoReplyValue.getResult().getXid(), ECHO_XID.getValue())) {
+                    // 设置状态为WORKING
                     connectionContext.changeStateToWorking();
                     shouldBeDisconnected = false;
                 } else {

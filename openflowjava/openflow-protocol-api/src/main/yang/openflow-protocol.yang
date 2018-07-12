@@ -1238,6 +1238,7 @@
                 }
             }
 
+            // hello消息
             /* Immutable messages. */
             notification hello-message {
                 uses hello;

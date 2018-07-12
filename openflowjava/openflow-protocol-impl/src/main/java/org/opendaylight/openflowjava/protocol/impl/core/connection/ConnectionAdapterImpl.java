@@ -69,16 +69,25 @@ public class ConnectionAdapterImpl extends AbstractConnectionAdapterStatistics i
         LOG.debug("ConnectionAdapter created");
     }
 
+    /*
+        在ConnectionManagerImpl中被调用
+    */
     @Override
     public void setMessageListener(final OpenflowProtocolListener messageListener) {
         this.messageListener = messageListener;
     }
 
+    /*
+        在ConnectionManagerImpl中被调用
+    */
     @Override
     public void setConnectionReadyListener(final ConnectionReadyListener connectionReadyListener) {
         this.connectionReadyListener = connectionReadyListener;
     }
 
+    /*
+        在ConnectionManagerImpl中被调用
+     */
     @Override
     public void setSystemListener(final SystemNotificationsListener systemListener) {
         this.systemListener = systemListener;
@@ -89,6 +98,10 @@ public class ConnectionAdapterImpl extends AbstractConnectionAdapterStatistics i
         this.alienMessageListener = alienMessageListener;
     }
 
+    /*
+        会被父类AbstractConnectionAdapterStatistics的consume()中调用
+        处理各个类型的消息
+     */
     @Override
     public void consumeDeviceMessage(final DataObject message) {
         LOG.debug("ConsumeIntern msg on {}", channel);
@@ -163,6 +176,9 @@ public class ConnectionAdapterImpl extends AbstractConnectionAdapterStatistics i
         return new RpcResponseKey(message.getXid(), message.getImplementedInterface().getName());
     }
 
+    /*
+        在TcpChannelInitializer中initChannel调用
+     */
     @Override
     public void checkListeners() {
         final StringBuilder buffer =  new StringBuilder();
@@ -179,6 +195,10 @@ public class ConnectionAdapterImpl extends AbstractConnectionAdapterStatistics i
         Preconditions.checkState(buffer.length() == 0, "Missing listeners: %s", buffer.toString());
     }
 
+    /*
+        在TcpChannelInitializer中initChannel调用, 效果:
+            调用connectionReadyListener.onConnectionReady()方法, 效果发起handshake
+     */
     @Override
     public void fireConnectionReadyNotification() {
         versionDetector = (OFVersionDetector) channel.pipeline().get(PipelineHandlers.OF_VERSION_DETECTOR.name());

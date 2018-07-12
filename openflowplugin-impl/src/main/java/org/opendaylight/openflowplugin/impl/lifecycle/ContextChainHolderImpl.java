@@ -75,14 +75,19 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
     private StatisticsManager statisticsManager;
     private RoleManager roleManager;
 
+    // OpenflowPluginProviderImpl中调用
     public ContextChainHolderImpl(final ExecutorService executorService,
                                   final ClusterSingletonServiceProvider singletonServiceProvider,
                                   final EntityOwnershipService entityOwnershipService,
                                   final OwnershipChangeListener ownershipChangeListener) {
         this.singletonServiceProvider = singletonServiceProvider;
         this.executorService = executorService;
+
+        // ofp mastership
         this.ownershipChangeListener = ownershipChangeListener;
         this.ownershipChangeListener.setMasterChecker(this);
+
+        // mdsal eos
         this.eosListenerRegistration = Objects
                 .requireNonNull(entityOwnershipService.registerListener(ASYNC_SERVICE_ENTITY_TYPE, this));
     }
@@ -104,23 +109,43 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
         }
     }
 
+    /*
+        理解：每个connection(sw连接)一个connectionContext
+
+        效果:
+            1.
+     */
     @VisibleForTesting
     void createContextChain(final ConnectionContext connectionContext) {
+        // connectionContext信息是在HandshakeListenerImpl中设置(在connectionManagerImpl中创建)
+
         final DeviceInfo deviceInfo = connectionContext.getDeviceInfo();
 
+        /*
+            DeviceManager(在OpenflowPluginProvider中设置的)
+         */
         final DeviceContext deviceContext = deviceManager.createContext(connectionContext);
         deviceContext.registerMastershipWatcher(this);
         LOG.debug("Device" + CONTEXT_CREATED_FOR_CONNECTION, deviceInfo);
 
+        /*
+
+         */
         final RpcContext rpcContext = rpcManager.createContext(deviceContext);
         rpcContext.registerMastershipWatcher(this);
         LOG.debug("RPC" + CONTEXT_CREATED_FOR_CONNECTION, deviceInfo);
 
+        /*
+
+         */
         final StatisticsContext statisticsContext = statisticsManager
                 .createContext(deviceContext, ownershipChangeListener.isReconciliationFrameworkRegistered());
         statisticsContext.registerMastershipWatcher(this);
         LOG.debug("Statistics" + CONTEXT_CREATED_FOR_CONNECTION, deviceInfo);
 
+        /*
+
+         */
         final RoleContext roleContext = roleManager.createContext(deviceContext);
         roleContext.registerMastershipWatcher(this);
         LOG.debug("Role" + CONTEXT_CREATED_FOR_CONNECTION, deviceInfo);
@@ -143,6 +168,9 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
         contextChain.registerServices(singletonServiceProvider);
     }
 
+    /*
+        HandshakeListenerImpl中当handshake成功会调用
+     */
     @Override
     public ConnectionStatus deviceConnected(final ConnectionContext connectionContext) throws Exception {
         final DeviceInfo deviceInfo = connectionContext.getDeviceInfo();
@@ -150,6 +178,7 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
         final FeaturesReply featuresReply = connectionContext.getFeatures();
         final Short auxiliaryId = featuresReply != null ? featuresReply.getAuxiliaryId() : null;
 
+        // 辅助连接
         if (auxiliaryId != null && auxiliaryId != 0) {
             if (contextChain == null) {
                 LOG.warn("An auxiliary connection for device {}, but no primary connection. Refusing connection.",
@@ -186,6 +215,7 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
                 LOG.info("Old connection dropped, creating new context chain for device {}", deviceInfo);
                 createContextChain(connectionContext);
             } else {
+                // 设备第一次connect,需要创建contextChain
                 LOG.info("No context chain found for device: {}, creating new.", deviceInfo);
                 createContextChain(connectionContext);
             }
@@ -195,6 +225,11 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
 
     }
 
+    /*
+        ContextChainMastershipWatcher interface:
+        Event occurs if there was a try to acquire MASTER role.
+        But it was not possible to start this MASTER role on device.
+     */
     @Override
     public void onNotAbleToStartMastership(@Nonnull final DeviceInfo deviceInfo, @Nonnull final String reason,
                                            final boolean mandatory) {
@@ -211,6 +246,13 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
         });
     }
 
+    /*
+        ContextChainMastershipWatcher interface:
+            Changed to MASTER role on device.成为设备的master
+
+        调用情况:
+        1.
+     */
     @Override
     public void onMasterRoleAcquired(@Nonnull final DeviceInfo deviceInfo,
                                      @Nonnull final ContextChainMastershipState mastershipState) {
@@ -230,6 +272,10 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
         });
     }
 
+    /*
+        ContextChainMastershipWatcher interface:
+        Change to SLAVE role on device was successful.
+     */
     @Override
     public void onSlaveRoleAcquired(final DeviceInfo deviceInfo) {
         ownershipChangeListener.becomeSlaveOrDisconnect(deviceInfo);
@@ -237,6 +283,10 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
         Optional.ofNullable(contextChainMap.get(deviceInfo)).ifPresent(ContextChain::makeContextChainStateSlave);
     }
 
+    /*
+        ContextChainMastershipWatcher interface:
+        Change to SLAVE role on device was not able.
+     */
     @Override
     public void onSlaveRoleNotAcquired(final DeviceInfo deviceInfo, final String reason) {
         LOG.warn("Not able to set SLAVE role on device {}, reason: {}", deviceInfo, reason);
@@ -277,6 +327,10 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
         eosListenerRegistration.close();
     }
 
+    /*
+        mdsal的EntityOwnershipListener interface
+
+     */
     @Override
     @SuppressFBWarnings("BC_UNCONFIRMED_CAST_OF_RETURN_VALUE")
     public void ownershipChanged(EntityOwnershipChange entityOwnershipChange) {

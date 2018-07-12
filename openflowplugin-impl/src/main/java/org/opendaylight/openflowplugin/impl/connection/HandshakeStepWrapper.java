@@ -39,6 +39,9 @@ public class HandshakeStepWrapper implements Runnable {
         this.connectionAdapter = connectionAdapter;
     }
 
+    /*
+        在ConnectionReadyListenerImpl.onConnectionReady()中创建新线程执行
+     */
     @Override
     public void run() {
         if (connectionAdapter.isAlive()) {

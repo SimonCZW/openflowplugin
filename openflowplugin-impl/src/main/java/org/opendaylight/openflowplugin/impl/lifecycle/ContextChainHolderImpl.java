@@ -88,6 +88,7 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
         this.ownershipChangeListener.setMasterChecker(this);
 
         // mdsal eos
+        // 监听类型为："org.opendaylight.mdsal.AsyncServiceCloseEntityType"的EOS
         this.eosListenerRegistration = Objects
                 .requireNonNull(entityOwnershipService.registerListener(ASYNC_SERVICE_ENTITY_TYPE, this));
     }
@@ -112,8 +113,7 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
     /*
         理解：每个connection(sw连接)一个connectionContext
 
-        效果:
-            1.
+        为每个connection(switch)创建contextChain, 而每个contextChain是一个singleton service(即每个sw会有一个service运行在整个集群的一个节点上)
      */
     @VisibleForTesting
     void createContextChain(final ConnectionContext connectionContext) {
@@ -122,21 +122,25 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
         final DeviceInfo deviceInfo = connectionContext.getDeviceInfo();
 
         /*
-            DeviceManager(在OpenflowPluginProvider中设置的)
+            DeviceManager(在OpenflowPluginProvider中设置的),效果:
+            1.设置ConnectionAdapterImpl中设置packetIn filter为true
+            2.创建OutboundQueueHandler并设置到connectionAdapterImpl
+            3.创建DeviceContextImpl
+            4.创建OpenflowProtocolListenerFullImpl注册到ConnectionAdapterImpl对象,当收到消息回调OpenflowProtocolListenerFullImpl方法
          */
         final DeviceContext deviceContext = deviceManager.createContext(connectionContext);
         deviceContext.registerMastershipWatcher(this);
         LOG.debug("Device" + CONTEXT_CREATED_FOR_CONNECTION, deviceInfo);
 
         /*
-
+            创建此connection的rpcContextImpl对象
          */
         final RpcContext rpcContext = rpcManager.createContext(deviceContext);
         rpcContext.registerMastershipWatcher(this);
         LOG.debug("RPC" + CONTEXT_CREATED_FOR_CONNECTION, deviceInfo);
 
         /*
-
+            创建此connetion的statisticsContextImpl对象
          */
         final StatisticsContext statisticsContext = statisticsManager
                 .createContext(deviceContext, ownershipChangeListener.isReconciliationFrameworkRegistered());
@@ -144,27 +148,42 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
         LOG.debug("Statistics" + CONTEXT_CREATED_FOR_CONNECTION, deviceInfo);
 
         /*
-
+            创建此connection的RoleContextImpl对象
+                会创建SalRoleServiceImpl对象(包含roleService对象)
          */
         final RoleContext roleContext = roleManager.createContext(deviceContext);
         roleContext.registerMastershipWatcher(this);
         LOG.debug("Role" + CONTEXT_CREATED_FOR_CONNECTION, deviceInfo);
 
+        /*
+            1.创建ContextChainImpl对象
+            2.设置deviceRemovedHandler
+            3.添加contextImpl到索引
+         */
         final ContextChain contextChain = new ContextChainImpl(this, connectionContext, executorService);
         contextChain.registerDeviceRemovedHandler(deviceManager);
         contextChain.registerDeviceRemovedHandler(rpcManager);
         contextChain.registerDeviceRemovedHandler(statisticsManager);
         contextChain.registerDeviceRemovedHandler(roleManager);
         contextChain.registerDeviceRemovedHandler(this);
-        contextChain.addContext(deviceContext);
+        contextChain.addContext(deviceContext); //会context被装进GuardedContextImpl
         contextChain.addContext(rpcContext);
         contextChain.addContext(statisticsContext);
         contextChain.addContext(roleContext);
+        // 索引contextChain
         contextChainMap.put(deviceInfo, contextChain);
+        // 创建完contextChainImpl说明已经成功连上, 从connecting索引中去掉这设备
         connectingDevices.remove(deviceInfo);
         LOG.debug("Context chain" + CONTEXT_CREATED_FOR_CONNECTION, deviceInfo);
 
+        // 效果是：设置ConnectionAdapterImpl中设置packetIn filter为false, 上面创建deviceContext开始时会设置值为true, 为了创建contextChain时不要接受PacketIn?
         deviceContext.onPublished();
+
+        /*
+            将contextChain注册到singleton service中,
+            效果: 每个contextChain自身都是一个singleton service, 即每个switch connection都只会在cluster内一个节点上是主
+                当选举出主时,会调用contextChain的instantiateServiceInstance()方法
+         */
         contextChain.registerServices(singletonServiceProvider);
     }
 
@@ -226,6 +245,11 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
     }
 
     /*
+        1.会在contextChainImpl中被调用,当contextChain在节点运行时,当前节点称为singleton master, 会尝试运行每个context的instantiateServiceInstance方法,
+            运行出错就调用当前方法(调用父类onNotAbleToStartMastershipMandatory)且第三个参数为true.
+          即在contextChain在当前节点成为master时, 尝试运行context的init方法, 出错则调用当前方法destroyContextChain
+     */
+    /*
         ContextChainMastershipWatcher interface:
         Event occurs if there was a try to acquire MASTER role.
         But it was not possible to start this MASTER role on device.
@@ -250,23 +274,50 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
         ContextChainMastershipWatcher interface:
             Changed to MASTER role on device.成为设备的master
 
-        调用情况:
-        1.
+        调用情况: deviceContext, rpcContext, statisticsContext, roleContext执行完instantiateServiceInstance()后 //被ContextChain在某节点初始化时调用的
+
+        deviceContext调用传入的状态是 INITIAL_FLOW_REGISTRY_FILL
+        rpcContext是RPC_REGISTRATION
+        statisticsContext是INITIAL_GATHERING, INITIAL_SUBMIT
+        roleContext是MASTER_ON_DEVICE
      */
     @Override
     public void onMasterRoleAcquired(@Nonnull final DeviceInfo deviceInfo,
                                      @Nonnull final ContextChainMastershipState mastershipState) {
         Optional.ofNullable(contextChainMap.get(deviceInfo)).ifPresent(contextChain -> {
+
+            /*
+                使用ReconciliationFramework, 使用情况下不会出现INITIAL_SUBMIT状态(statisticsContextImpl中)
+                使用时,不会继续收集数据statistics
+              */
             if (ownershipChangeListener.isReconciliationFrameworkRegistered()
                     && !ContextChainMastershipState.INITIAL_SUBMIT.equals(mastershipState)) {
-                if (contextChain.isMastered(mastershipState, true)) {
+                if (contextChain.isMastered(mastershipState, true)) { //使用reconciliationFramework情况下,在isMaster()中不会设状态
+                    // 几个context(deviceContext,rpcContext,statisticContext,roleContext)都初始化完成(各自instantiateServiceInstance执行完成), 才会进入此处, 节点才能成为device的master
+
+                    /*
+                        如果开启reconciliationFramework, ownershipChangeListener会在reconciliationManagerImpl中有额外处理
+
+                        reconciliationFrameworkCallback回调是收集statistics静态数据
+                            理解：如果开了reconciliationFramework, 会在contextChain完全成为master后才收集
+                     */
                     Futures.addCallback(ownershipChangeListener.becomeMasterBeforeSubmittedDS(deviceInfo),
-                                        reconciliationFrameworkCallback(deviceInfo, contextChain),
+                                        reconciliationFrameworkCallback(deviceInfo, contextChain), // 回调reconciliationFramework, 收集数据
                                         MoreExecutors.directExecutor());
                 }
-            } else if (contextChain.isMastered(mastershipState, false)) {
+            }
+            //  如果不使用ReconciliationFramework, 会向switch收集信息.状态INITIAL_SUBMMIT
+            else if (contextChain.isMastered(mastershipState, false)) { //不使用reconciliationFramework情况下,在isMastered()方法内会直接设置contextChain及各个context状态为WORKING_MASTER
+                /*
+                    几个context(deviceContext,rpcContext,statisticContext,roleContext)都初始化完成(各自instantiateServiceInstance执行完成), 才会进入此处, 节点才能成为device的master
+
+                    到达此处, contextChain及各个context状态已被设置为WORKING_MASTER
+                 */
                 LOG.info("Role MASTER was granted to device {}", deviceInfo);
+                // 注册一下 ??
                 ownershipChangeListener.becomeMaster(deviceInfo);
+
+                // TODO:
                 deviceManager.sendNodeAddedNotification(deviceInfo.getNodeInstanceIdentifier());
             }
         });
@@ -330,6 +381,7 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
     /*
         mdsal的EntityOwnershipListener interface
 
+        监听类型为："org.opendaylight.mdsal.AsyncServiceCloseEntityType"的entity 状态变化
      */
     @Override
     @SuppressFBWarnings("BC_UNCONFIRMED_CAST_OF_RETURN_VALUE")
@@ -365,7 +417,11 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
         }
     }
 
+    /*
+        效果: becomeSlave或者disconnect
+     */
     private void destroyContextChain(final DeviceInfo deviceInfo) {
+        // TODO： 具体过程?
         ownershipChangeListener.becomeSlaveOrDisconnect(deviceInfo);
         Optional.ofNullable(contextChainMap.get(deviceInfo)).ifPresent(contextChain -> {
             deviceManager.sendNodeRemovedNotification(deviceInfo.getNodeInstanceIdentifier());
@@ -401,6 +457,12 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
             public void onSuccess(@Nullable ResultState result) {
                 if (ResultState.DONOTHING == result) {
                     LOG.info("Device {} connection is enabled by reconciliation framework.", deviceInfo);
+                    /*
+                        调用statisticsContextImpl收集数据.
+
+                        在statisticsContextImpl中如果没使用reconciliationFramework. statisticsContextImpl初始化实例就会收集.
+                        理解：如果开了reconciliationFramework, 会在contextChain完全成为master后才收集
+                     */
                     contextChain.continueInitializationAfterReconciliation();
                 } else {
                     LOG.warn("Reconciliation framework failure for device {}", deviceInfo);

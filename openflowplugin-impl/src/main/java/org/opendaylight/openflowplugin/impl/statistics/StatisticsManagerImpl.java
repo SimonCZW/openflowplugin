@@ -99,6 +99,7 @@ public class StatisticsManagerImpl implements StatisticsManager, StatisticsManag
     @Override
     public StatisticsContext createContext(@Nonnull final DeviceContext deviceContext,
                                            final boolean useReconciliationFramework) {
+        // 创建MultipartWriterProvider
         final MultipartWriterProvider statisticsWriterProvider = MultipartWriterProviderFactory
                 .createDefaultProvider(deviceContext);
 

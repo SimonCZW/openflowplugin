@@ -42,6 +42,9 @@ public class ReconciliationManagerImpl implements ReconciliationManager, Reconci
     private final Map<ResultState, Integer> resultStateMap = new ConcurrentHashMap<>();
     private final AtomicReference<ResultState> decidedResultState = new AtomicReference<>(ResultState.DONOTHING);
 
+    /*
+        在reconciliation-framework.xml中创建
+     */
     public ReconciliationManagerImpl(MastershipChangeServiceManager mastershipChangeServiceManager) {
         this.mastershipChangeServiceManager = Preconditions
                 .checkNotNull(mastershipChangeServiceManager, "MastershipChangeServiceManager can not be null!");

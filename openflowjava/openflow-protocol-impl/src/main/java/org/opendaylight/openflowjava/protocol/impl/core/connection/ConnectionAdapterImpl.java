@@ -71,6 +71,8 @@ public class ConnectionAdapterImpl extends AbstractConnectionAdapterStatistics i
 
     /*
         在ConnectionManagerImpl中被调用
+
+        handshake成功后,ContextChainHolderImpl创建deviceContext时, 会创建OpenflowProtocolListenerFullImpl messageListener并注册到此
     */
     @Override
     public void setMessageListener(final OpenflowProtocolListener messageListener) {
@@ -207,6 +209,9 @@ public class ConnectionAdapterImpl extends AbstractConnectionAdapterStatistics i
         new Thread(() -> connectionReadyListener.onConnectionReady()).start();
     }
 
+    /*
+        在handshake成功后，contextChainHolderImpl中创建deviceContext时, deviceContext中会创建outboundQueueProvider调用此方法注册
+     */
     @Override
     public <T extends OutboundQueueHandler> OutboundQueueHandlerRegistration<T> registerOutboundQueueHandler(
             final T handler, final int maxQueueDepth, final long maxBarrierNanos) {

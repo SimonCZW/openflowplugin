@@ -18,6 +18,10 @@ public final class DeviceInitializerProviderFactory {
     private DeviceInitializerProviderFactory() {
     }
 
+    /*
+        在OpenflowPluginProvider被调用创建DeviceInitializerProvider
+        最终是在DeviceContextImpl.instantiateServiceInstance()中被调用
+     */
     /**
      * Create default #{@link org.opendaylight.openflowplugin.impl.device.initialization.DeviceInitializerProvider}.
      * @return the device initialization provider

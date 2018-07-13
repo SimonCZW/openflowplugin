@@ -41,9 +41,13 @@ public final class SalRoleServiceImpl extends AbstractSimpleService<SetRoleInput
     private final DeviceContext deviceContext;
     private final RoleService roleService;
 
+    /*
+        在RoleManagerImpl中创建，传入的requestContextStack是roleContextImpl
+     */
     public SalRoleServiceImpl(final RequestContextStack requestContextStack, final DeviceContext deviceContext) {
         super(requestContextStack, deviceContext, SetRoleOutput.class);
         this.deviceContext = Preconditions.checkNotNull(deviceContext);
+        // 创建RoleService
         this.roleService =  new RoleService(requestContextStack, deviceContext, RoleRequestOutput.class);
     }
 

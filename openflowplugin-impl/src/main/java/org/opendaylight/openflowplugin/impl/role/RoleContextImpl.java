@@ -67,6 +67,7 @@ public class RoleContextImpl implements RoleContext {
         this.deviceInfo = deviceInfo;
         this.timer = timer;
         this.config = config;
+        // 超时没成为master就会成为slave
         slaveTask = timer.newTimeout((timerTask) -> makeDeviceSlave(), checkRoleMasterTimeout, TimeUnit.MILLISECONDS);
 
         LOG.info("Started timer for setting SLAVE role on device {} if no role will be set in {}s.",
@@ -81,7 +82,7 @@ public class RoleContextImpl implements RoleContext {
 
     @Override
     public void setRoleService(final SalRoleService salRoleService) {
-        roleService = salRoleService;
+        roleService = salRoleService; // new SalRoleServiceImpl(roleContext, deviceContext)
     }
 
     @Override
@@ -97,10 +98,20 @@ public class RoleContextImpl implements RoleContext {
         requestContexts.clear();
     }
 
+    /*
+        在contextChainHolderImpl中,创建的当前DeviceContextImpl对象,会被add到contextChainImpl中, 而contextChainImpl中会被注册为singletonService,
+            当contextImpl在当前节点成为leader,会调用其自身的instantiateServiceInstance()方法,
+            而它的instantiateServiceInstance()方法会调用RoleContextImpl的instantiateServiceInstance方法
+    */
     @Override
     public void instantiateServiceInstance() {
+        /*
+            通知device成为master, rpc set-role
+         */
         final ListenableFuture<RpcResult<SetRoleOutput>> future = sendRoleChangeToDevice(OfpRole.BECOMEMASTER);
         changeLastRoleFuture(future);
+
+        // 回调contextChainHolderImpl.onMasterRoleAcquired()
         Futures.addCallback(future, new MasterRoleCallback(), MoreExecutors.directExecutor());
     }
 
@@ -148,6 +159,7 @@ public class RoleContextImpl implements RoleContext {
     }
 
     private ListenableFuture<RpcResult<SetRoleOutput>> sendRoleChangeToDevice(final OfpRole newRole) {
+        // equalRole模式下不通知ovs节点
         final Boolean isEqualRole = config.isEnableEqualRole();
         if (isEqualRole) {
             LOG.warn("Skip sending role change request to device {} as user enabled"
@@ -156,12 +168,15 @@ public class RoleContextImpl implements RoleContext {
         }
         LOG.debug("Sending new role {} to device {}", newRole, deviceInfo);
 
+        // openflow版本大于等于1.3才处理, 应该是openflow1.3才支持
         if (deviceInfo.getVersion() >= OFConstants.OFP_VERSION_1_3) {
+            // sal-role.yang: rpc set-role
             final SetRoleInput setRoleInput = new SetRoleInputBuilder()
                     .setControllerRole(newRole)
                     .setNode(new NodeRef(deviceInfo.getNodeInstanceIdentifier()))
                     .build();
 
+            // 发送rpc
             final Future<RpcResult<SetRoleOutput>> setRoleOutputFuture = roleService.setRole(setRoleInput);
 
             final TimerTask timerTask = timeout -> {
@@ -180,9 +195,11 @@ public class RoleContextImpl implements RoleContext {
         return Futures.immediateFuture(null);
     }
 
+    // set role成功回调
     private final class MasterRoleCallback implements FutureCallback<RpcResult<SetRoleOutput>> {
         @Override
         public void onSuccess(@Nullable RpcResult<SetRoleOutput> setRoleOutputRpcResult) {
+            // 回调,设置状态为MASTER_ON_DEVICE
             contextChainMastershipWatcher.onMasterRoleAcquired(
                     deviceInfo,
                     ContextChainMastershipState.MASTER_ON_DEVICE);

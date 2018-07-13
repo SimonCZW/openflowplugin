@@ -47,6 +47,9 @@ public class OF13DeviceInitializer extends AbstractDeviceInitializer {
 
     private static final Logger LOG = LoggerFactory.getLogger(OF13DeviceInitializer.class);
 
+    /*
+        调用父类initialize()方法, 最后父类多态调用到子类的此方法
+     */
     @Override
     protected Future<Void> initializeNodeInformation(@Nonnull final DeviceContext deviceContext,
                                                      final boolean switchFeaturesMandatory,
@@ -59,8 +62,17 @@ public class OF13DeviceInitializer extends AbstractDeviceInitializer {
         final DeviceInfo deviceInfo = Preconditions.checkNotNull(deviceContext.getDeviceInfo());
         final Capabilities capabilities = connectionContext.getFeatures().getCapabilities();
         LOG.debug("Setting capabilities for device {}", deviceInfo);
+        // 解析capabilities, 写会deviceState中
         DeviceStateUtil.setDeviceStateBasedOnV13Capabilities(deviceState, capabilities);
 
+        /*
+            1,initializes the device context: the static context of device is populated
+            by calling createDeviceFeaturesForOF<version>() to populate table, group, meter features and port descriptions.
+
+            2,creates an instance of RequestContext for each type of feature.
+
+            参考:https://docs.opendaylight.org/en/stable-oxygen/developer-guide/openflow-plugin-project-developer-guide.html?highlight=EOS#salflatbatchservice
+         */
         // First process description reply, write data to DS and write consequent data if successful
         return Futures.transformAsync(
             requestMultipart(MultipartType.OFPMPDESC, deviceContext),

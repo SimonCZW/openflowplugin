@@ -41,6 +41,7 @@ public class RoleManagerImpl implements RoleManager {
                 deviceContext.getDeviceInfo(),
                 timer, CHECK_ROLE_MASTER_TIMEOUT, config);
 
+        // 给roleContext设置salRoleService. 创建salRoleServiceImpl会创建RoleService
         roleContext.setRoleService(new SalRoleServiceImpl(roleContext, deviceContext));
         contexts.put(deviceInfo, roleContext);
         return roleContext;

@@ -25,6 +25,7 @@ final class StackedOutboundQueue extends AbstractStackedOutboundQueue {
         super(manager);
     }
 
+    // 发送消息到管道
     /*
      * This method is expected to be called from multiple threads concurrently
      */

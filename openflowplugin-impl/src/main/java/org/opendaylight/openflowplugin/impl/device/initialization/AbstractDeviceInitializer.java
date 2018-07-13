@@ -27,6 +27,9 @@ public abstract class AbstractDeviceInitializer {
 
     private static final Logger LOG = LoggerFactory.getLogger(AbstractDeviceInitializer.class);
 
+    /*
+        在DeviceContextImpl.instantiateServiceInstance()会调用到
+     */
     /**
      * Perform initial information gathering and store them to operational datastore.
      *
@@ -47,6 +50,7 @@ public abstract class AbstractDeviceInitializer {
         // Write node to datastore
         LOG.debug("Initializing node information for node {}", deviceContext.getDeviceInfo());
         try {
+            // 写入ovs node
             deviceContext.writeToTransaction(LogicalDatastoreType.OPERATIONAL, deviceContext
                     .getDeviceInfo()
                     .getNodeInstanceIdentifier(),
@@ -61,6 +65,7 @@ public abstract class AbstractDeviceInitializer {
         }
 
         // Get information about device
+        // 多态, 调用子类OF10DeviceInitializer或OF13DeviceInitializer的方法
         return initializeNodeInformation(deviceContext, switchFeaturesMandatory, skipTableFeatures,
                 multipartWriterProvider, convertorExecutor);
     }

@@ -65,17 +65,21 @@ public class RpcManagerImpl implements RpcManager {
         }
     }
 
+    /*
+        ContextChainHolderImpl中调用, 在sw连上控制器handshake后才会调用
+     */
     @Override
     public RpcContext createContext(final @Nonnull DeviceContext deviceContext) {
         final RpcContextImpl rpcContext = new RpcContextImpl(
                 rpcProviderRegistry,
                 config.getRpcRequestsQuota().getValue(),
                 deviceContext,
-                extensionConverterProvider,
+                extensionConverterProvider, //ExtensionConverterManagerImpl, 是在openflowPluginProvider中new的
                 convertorExecutor,
                 notificationPublishService,
                 config.isIsStatisticsRpcEnabled());
 
+        // 索引rpcContext
         contexts.put(deviceContext.getDeviceInfo(), rpcContext);
         return rpcContext;
     }

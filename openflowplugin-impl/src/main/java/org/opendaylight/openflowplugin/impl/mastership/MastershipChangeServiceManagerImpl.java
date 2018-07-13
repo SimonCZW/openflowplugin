@@ -26,9 +26,12 @@ import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.openflow
 public final class MastershipChangeServiceManagerImpl implements MastershipChangeServiceManager {
 
     private final List<MastershipChangeService> serviceGroup = new CopyOnWriteArrayList<>();
-    private ReconciliationFrameworkEvent rfService = null;
+    private ReconciliationFrameworkEvent rfService = null; // 可以不使用ReconciliationFramework
     private MasterChecker masterChecker;
 
+    /*
+        哪里调用????
+     */
     @Nonnull
     @Override
     public MastershipChangeRegistration register(@Nonnull MastershipChangeService service) {
@@ -41,12 +44,16 @@ public final class MastershipChangeServiceManagerImpl implements MastershipChang
         return registration;
     }
 
+    /*
+        在ReconciliationManagerImpl中调用, 设置为自身
+     */
     @Override
     public ReconciliationFrameworkRegistration reconciliationFrameworkRegistration(
             @Nonnull ReconciliationFrameworkEvent reconciliationFrameworkEvent) throws MastershipChangeException {
         if (rfService != null) {
             throw new MastershipChangeException("Reconciliation framework already registered.");
         } else {
+            // reconciliationFrameworkEvent是ReconciliationManagerImpl
             rfService = reconciliationFrameworkEvent;
             return new ReconciliationFrameworkServiceDelegate(reconciliationFrameworkEvent, () -> rfService = null);
         }
@@ -77,6 +84,9 @@ public final class MastershipChangeServiceManagerImpl implements MastershipChang
         return rfService == null ? null : rfService.onDevicePrepared(deviceInfo);
     }
 
+    /*
+        在ContextChainHolderImpl构造器中,会将自身设置为masterChecker. 即masterChecker为ContextChainHolderImpl
+     */
     @Override
     public void setMasterChecker(@Nonnull final MasterChecker masterChecker) {
         this.masterChecker = masterChecker;

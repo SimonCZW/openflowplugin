@@ -88,7 +88,7 @@ public final class MdSalRegistrationUtils {
      */
     public static void registerServices(@Nonnull final RpcContext rpcContext,
                                         @Nonnull final DeviceContext deviceContext,
-                                        final ExtensionConverterProvider extensionConverterProvider,
+                                        final ExtensionConverterProvider extensionConverterProvider, //ExtensionConverterManagerImpl, 是在openflowPluginProvider中new的
                                         final ConvertorExecutor convertorExecutor) {
         // TODO: Use multipart writer provider from device context
         final MultipartWriterProvider multipartWriterProvider = MultipartWriterProviderFactory

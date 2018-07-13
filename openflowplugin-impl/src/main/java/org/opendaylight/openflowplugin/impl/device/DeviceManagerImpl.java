@@ -134,7 +134,7 @@ public class DeviceManagerImpl implements DeviceManager, ExtensionConverterProvi
     }
 
     /*
-        ContextChainHolderImpl中调用
+        ContextChainHolderImpl中调用, 在sw连上控制器handshake后才会调用
      */
     @Override
     public DeviceContext createContext(@Nonnull final ConnectionContext connectionContext) {
@@ -143,12 +143,14 @@ public class DeviceManagerImpl implements DeviceManager, ExtensionConverterProvi
                 connectionContext.getConnectionAdapter().getRemoteAddress(),
                 connectionContext.getDeviceInfo().getNodeId());
 
+        // 过滤掉packetIn消息
         connectionContext.getConnectionAdapter().setPacketInFiltering(true);
 
         final OutboundQueueProvider outboundQueueProvider
                 = new OutboundQueueProviderImpl(connectionContext.getDeviceInfo().getVersion());
 
         connectionContext.setOutboundQueueProvider(outboundQueueProvider);
+        // 注册OutboundQueueHandler，用于output先到OutboundQueueHandler再会到ConnectionAdapterImpl
         final OutboundQueueHandlerRegistration<OutboundQueueProvider> outboundQueueHandlerRegistration =
                 connectionContext.getConnectionAdapter().registerOutboundQueueHandler(
                         outboundQueueProvider,
@@ -174,12 +176,18 @@ public class DeviceManagerImpl implements DeviceManager, ExtensionConverterProvi
         ((ExtensionConverterProviderKeeper) deviceContext).setExtensionConverterProvider(extensionConverterProvider);
         deviceContext.setNotificationPublishService(notificationPublishService);
 
+        // 索引deviceContext
         deviceContexts.put(connectionContext.getDeviceInfo(), deviceContext);
         updatePacketInRateLimiters();
 
+        // 创建message监听器
         final OpenflowProtocolListenerFullImpl messageListener = new OpenflowProtocolListenerFullImpl(
                 connectionContext.getConnectionAdapter(), deviceContext);
 
+        /*
+            注册messageListener到ConnectionAdapterImpl中,
+                当ConnectionAdapterImpl有消息会回调OpenflowProtocolListenerFullImpl messageListener的方法
+         */
         connectionContext.getConnectionAdapter().setMessageListener(messageListener);
         connectionContext.getConnectionAdapter().setAlienMessageListener(messageListener);
 
@@ -229,15 +237,31 @@ public class DeviceManagerImpl implements DeviceManager, ExtensionConverterProvi
         this.contextChainHolder = contextChainHolder;
     }
 
+    /*
+        在contextChainHolderImpl中 节点作为一个contextChain的leader运行起来后, 几个context都初始化完成, 已经确定master为当前节点后调用
+     */
     @Override
     public void sendNodeAddedNotification(@Nonnull final KeyedInstanceIdentifier<Node, NodeKey> instanceIdentifier) {
         if (!notificationCreateNodeSend.contains(instanceIdentifier)) {
             notificationCreateNodeSend.add(instanceIdentifier);
             final NodeId id = instanceIdentifier.firstKeyOf(Node.class).getId();
+            /*
+             inventory.rev130819.NodeUpdatedBuilder
+
+                     description "A notification sent by someone who realized there was a modification to a node, but did not modify the data tree.
+                    Describes that something on the node has been updated (including addition of a new node), but is for
+                    whatever reason is not modifying the data tree.
+                    Deprecated: If a process determines that a node was updated, then that
+                    logic should update the node using the DataBroker directly. Listeners interested
+                    update changes should register a data change listener for notifications on removals.";
+
+             */
             NodeUpdatedBuilder builder = new NodeUpdatedBuilder();
             builder.setId(id);
             builder.setNodeRef(new NodeRef(instanceIdentifier));
             LOG.info("Publishing node added notification for {}", id);
+
+            // node updated通知
             notificationPublishService.offerNotification(builder.build());
         }
     }

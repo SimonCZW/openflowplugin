@@ -36,6 +36,9 @@ final class OutboundQueueManager<T extends OutboundQueueHandler> extends
         }
     };
 
+    /*
+        在ConnectionAdapterImpl中, T handler传入的是OutboundQueueProviderImpl
+     */
     OutboundQueueManager(final ConnectionAdapterImpl parent, final InetSocketAddress address, final T handler,
         final int maxNonBarrierMessages, final long maxBarrierNanos) {
         super(parent, address, handler);
@@ -45,6 +48,9 @@ final class OutboundQueueManager<T extends OutboundQueueHandler> extends
         this.maxBarrierNanos = maxBarrierNanos;
     }
 
+    /*
+        多态, `new StackedOutboundQueue(this)`是currentQueue
+     */
     @Override
     protected StackedOutboundQueue initializeStackedOutboudnqueue() {
         return new StackedOutboundQueue(this);

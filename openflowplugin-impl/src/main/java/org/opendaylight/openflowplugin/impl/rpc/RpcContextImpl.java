@@ -71,7 +71,7 @@ class RpcContextImpl implements RpcContext {
         this.nodeInstanceIdentifier = deviceContext.getDeviceInfo().getNodeInstanceIdentifier();
         this.messageSpy = deviceContext.getMessageSpy();
         this.rpcProviderRegistry = rpcProviderRegistry;
-        this.extensionConverterProvider = extensionConverterProvider;
+        this.extensionConverterProvider = extensionConverterProvider; //ExtensionConverterManagerImpl, 是在openflowPluginProvider中new的
         this.notificationPublishService = notificationPublishService;
         this.convertorExecutor = convertorExecutor;
         this.isStatisticsRpcEnabled = statisticsRpcEnabled;
@@ -190,11 +190,19 @@ class RpcContextImpl implements RpcContext {
         }, MoreExecutors.directExecutor());
     }
 
+    /*
+        在contextChainHolderImpl中,创建的当前DeviceContextImpl对象,会被add到contextChainImpl中, 而contextChainImpl中会被注册为singletonService,
+            当contextImpl在当前节点成为leader,会调用其自身的instantiateServiceInstance()方法,
+            而它的instantiateServiceInstance()方法会调用RpcContextImpl的instantiateServiceInstance方法
+    */
     @Override
     public void instantiateServiceInstance() {
+        // 创建各个sal service(对设备的rpc操作等等), registerRpcServiceImplementation到自身rpcContextImpl. 包括:SalFlowServiceImpl
+        //  registers all OF services for role
         MdSalRegistrationUtils.registerServices(this, deviceContext, extensionConverterProvider, convertorExecutor);
 
         if (isStatisticsRpcEnabled && !deviceContext.canUseSingleLayerSerialization()) {
+            // 注册统计相关的service
             MdSalRegistrationUtils.registerStatCompatibilityServices(
                     this,
                     deviceContext,

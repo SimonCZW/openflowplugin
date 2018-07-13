@@ -174,7 +174,7 @@ public class DeviceContextImpl implements DeviceContext, ExtensionConverterProvi
         this.primaryConnectionContext = primaryConnectionContext;
         this.deviceInfo = primaryConnectionContext.getDeviceInfo();
         this.hashedWheelTimer = hashedWheelTimer;
-        this.deviceInitializerProvider = deviceInitializerProvider;
+        this.deviceInitializerProvider = deviceInitializerProvider; // DeviceInitializerProviderFactory.createDefaultProvider();
         this.isFlowRemovedNotificationOn = isFlowRemovedNotificationOn;
         this.switchFeaturesMandatory = switchFeaturesMandatory;
         this.deviceState = new DeviceStateImpl();
@@ -349,6 +349,7 @@ public class DeviceContextImpl implements DeviceContext, ExtensionConverterProvi
                                 portStatusMessage.getPortNo(),
                                 OpenflowVersion.get(deviceInfo.getVersion()))));
 
+        // 将port(nodeConnector)写入到它的ovs node的opernational YANG
         writeToTransaction(LogicalDatastoreType.OPERATIONAL, iiToNodeConnector, new NodeConnectorBuilder()
                 .setKey(iiToNodeConnector.getKey())
                 .addAugmentation(FlowCapableNodeConnectorStatisticsData.class, new
@@ -526,6 +527,12 @@ public class DeviceContextImpl implements DeviceContext, ExtensionConverterProvi
 
     @Override
     public void onPublished() {
+        /*
+            primaryConnectionContext是ConnectionContext
+            从ConnectionContext中拿到南向的ConnectionAdapterImpl对象，设置packetIn filter为false
+
+            在调用链的前面, 创建DeviceContext时设置了为true. 为的是创建contextChain过程中不接受packetIn?
+         */
         primaryConnectionContext.getConnectionAdapter().setPacketInFiltering(false);
     }
 
@@ -578,7 +585,7 @@ public class DeviceContextImpl implements DeviceContext, ExtensionConverterProvi
 
     @Override
     public void registerMastershipWatcher(@Nonnull final ContextChainMastershipWatcher newWatcher) {
-        this.contextChainMastershipWatcher = newWatcher;
+        this.contextChainMastershipWatcher = newWatcher; //是ContextChainHolderImpl
     }
 
     @Nonnull
@@ -622,16 +629,32 @@ public class DeviceContextImpl implements DeviceContext, ExtensionConverterProvi
         return useSingleLayerSerialization && getDeviceInfo().getVersion() >= OFConstants.OFP_VERSION_1_3;
     }
 
+    /*
+        在contextChainHolderImpl中,创建的当前DeviceContextImpl对象,会被add到contextChainImpl中, 而contextChainImpl中会被注册为singletonService,
+            当contextImpl在当前节点成为leader,会调用其自身的instantiateServiceInstance()方法,
+            而它的instantiateServiceInstance()方法会调用DeviceContextImpl的instantiateServiceInstance方法
+     */
     // TODO: exception handling should be fixed by using custom checked exception, never RuntimeExceptions
     @Override
     @SuppressWarnings({"checkstyle:IllegalCatch"})
     public void instantiateServiceInstance() {
+        /*
+            1.创建transactionChainManager
+            2.创建deviceFlowRegistry
+            3.创建deviceGroupRegistry
+            4.创建deviceMeterRegistry
+         */
         lazyTransactionManagerInitialization();
 
         try {
+            // 从connectionContext取 portMessages
             final List<PortStatusMessage> portStatusMessages = primaryConnectionContext
                     .retrieveAndClearPortStatusMessages();
 
+            /*
+                将portStatusMessages写入operational YANG
+                    写入node的nodeConnector
+             */
             portStatusMessages.forEach(this::writePortStatusMessage);
             submitTransaction();
         } catch (final Exception ex) {
@@ -639,10 +662,24 @@ public class DeviceContextImpl implements DeviceContext, ExtensionConverterProvi
                     deviceInfo.toString(), ex.toString()), ex);
         }
 
+        /*
+            deviceInitializerProvider是 DeviceInitializerProvider (从openflowplugin传入)
+
+            此处lookup会根据openflow版本找到对应initializer:
+                1.0: OF10DeviceInitializer()
+                1.3: OF13DeviceInitializer()
+         */
         final Optional<AbstractDeviceInitializer> initializer = deviceInitializerProvider
                 .lookup(deviceInfo.getVersion());
 
         if (initializer.isPresent()) {
+            /*
+                调用initializer.initialize()方法, 会调用到AbstractDeviceInitializer(上述1.0/1.3的initializer的父类)的initialize方法,效果
+                    1.将ovs node写入operational YANG
+                    2.多态,调用回子类的initializeNodeInformation()方法:
+                        2.1 解析capabilities, 写会deviceContext.deviceState中
+                        2.2 creates an instance of RequestContext for each type of feature: table, group, meter features and port descriptions
+             */
             final Future<Void> initialize = initializer
                     .get()
                     .initialize(this, switchFeaturesMandatory, skipTableFeatures, writerProvider, convertorExecutor);
@@ -663,19 +700,35 @@ public class DeviceContextImpl implements DeviceContext, ExtensionConverterProvi
                     deviceInfo.toString()));
         }
 
+        /*
+            调用DeviceFlowRegistryImpl.fill()
+            应该是从ovs node对应的YANG FlowCapableNode的信息(table,flow)读取出来,写入到deviceFlowRegistryFill对象
+          */
         final ListenableFuture<List<com.google.common.base.Optional<FlowCapableNode>>> deviceFlowRegistryFill =
                 getDeviceFlowRegistry().fill();
+        /*
+            callback, 最后执行完逻辑会调用ContextChainHolderImpl中的onMasterRoleAcquired, 状态INITIAL_FLOW_REGISTRY_FILL
+         */
         Futures.addCallback(deviceFlowRegistryFill,
                 new DeviceFlowRegistryCallback(deviceFlowRegistryFill, contextChainMastershipWatcher),
                 MoreExecutors.directExecutor());
     }
 
+    /*
+        效果:
+            1.创建transactionChainManager
+            2.创建deviceFlowRegistry
+            3.创建deviceGroupRegistry
+            4.创建deviceMeterRegistry
+     */
     @VisibleForTesting
     void lazyTransactionManagerInitialization() {
         if (!this.initialized.get()) {
+            // 还没初始化
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Transaction chain manager for node {} created", deviceInfo);
             }
+            // tx manager?
             this.transactionChainManager = new TransactionChainManager(dataBroker, deviceInfo.getNodeId().getValue());
             this.deviceFlowRegistry = new DeviceFlowRegistryImpl(deviceInfo.getVersion(), dataBroker,
                     deviceInfo.getNodeInstanceIdentifier());
@@ -684,6 +737,7 @@ public class DeviceContextImpl implements DeviceContext, ExtensionConverterProvi
         }
 
         transactionChainManager.activateTransactionManager();
+        // 设置flag, 已经初始化完成
         initialized.set(true);
     }
 
@@ -708,6 +762,9 @@ public class DeviceContextImpl implements DeviceContext, ExtensionConverterProvi
         hasState.set(true);
     }
 
+    /*
+        instantiateServiceInstance()方法最后回调
+     */
     private class DeviceFlowRegistryCallback implements FutureCallback<List<com.google.common.base
             .Optional<FlowCapableNode>>> {
         private final ListenableFuture<List<com.google.common.base.Optional<FlowCapableNode>>> deviceFlowRegistryFill;
@@ -726,6 +783,7 @@ public class DeviceContextImpl implements DeviceContext, ExtensionConverterProvi
                 // Count all flows we read from datastore for debugging purposes.
                 // This number do not always represent how many flows were actually added
                 // to DeviceFlowRegistry, because of possible duplicates.
+                // 统计从YANG读取出来的流
                 long flowCount = Optional.ofNullable(result)
                         .map(Collections::singleton)
                         .orElse(Collections.emptySet())
@@ -744,6 +802,7 @@ public class DeviceContextImpl implements DeviceContext, ExtensionConverterProvi
 
                 LOG.debug("Finished filling flow registry with {} flows for node: {}", flowCount, deviceInfo);
             }
+            // 调用contextChainHolderImpl
             this.contextChainMastershipWatcher.onMasterRoleAcquired(deviceInfo, ContextChainMastershipState
                     .INITIAL_FLOW_REGISTRY_FILL);
         }

@@ -144,6 +144,7 @@ class StatisticsContextImpl<T extends OfHeader> implements StatisticsContext {
         if (deviceContext.initialSubmitTransaction()) {
             contextChainMastershipWatcher.onMasterRoleAcquired(deviceInfo, ContextChainMastershipState.INITIAL_SUBMIT);
 
+            // 收集
             startGatheringData();
         } else {
             contextChainMastershipWatcher
@@ -151,10 +152,16 @@ class StatisticsContextImpl<T extends OfHeader> implements StatisticsContext {
         }
     }
 
+    /*
+        在contextChainHolderImpl中,创建的当前DeviceContextImpl对象,会被add到contextChainImpl中, 而contextChainImpl中会被注册为singletonService,
+            当contextImpl在当前节点成为leader,会调用其自身的instantiateServiceInstance()方法,
+            而它的instantiateServiceInstance()方法会调用StatisticsContextImpl的instantiateServiceInstance方法
+    */
     @Override
     public void instantiateServiceInstance() {
         final List<MultipartType> statListForCollecting = new ArrayList<>();
 
+        // 根据device支持及config配置, 填入对应收集的数据类型. 意思应该是需要收集这些类型数据
         if (devState.isTableStatisticsAvailable() && config.isIsTableStatisticsPollingOn()) {
             statListForCollecting.add(MultipartType.OFPMPTABLE);
         }
@@ -182,6 +189,7 @@ class StatisticsContextImpl<T extends OfHeader> implements StatisticsContext {
         }
 
         collectingStatType = ImmutableList.copyOf(statListForCollecting);
+        // 收集数据, 成功后回调InitialSubmitCallback
         Futures.addCallback(gatherDynamicData(), new InitialSubmitCallback(), MoreExecutors.directExecutor());
     }
 
@@ -325,6 +333,8 @@ class StatisticsContextImpl<T extends OfHeader> implements StatisticsContext {
                     .onMasterRoleAcquired(deviceInfo, ContextChainMastershipState.INITIAL_GATHERING);
 
             if (!isUsingReconciliationFramework) {
+                // 如果不使用ReconciliationFramework, 会向switch收集信息.状态INITIAL_SUBMMIT
+                // 即使用ReconciliationFramework,不会收集
                 continueInitializationAfterReconciliation();
             }
         }

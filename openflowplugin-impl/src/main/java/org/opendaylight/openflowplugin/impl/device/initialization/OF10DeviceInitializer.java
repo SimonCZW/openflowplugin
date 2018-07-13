@@ -52,6 +52,9 @@ public class OF10DeviceInitializer extends AbstractDeviceInitializer {
 
     private static final Logger LOG = LoggerFactory.getLogger(OF10DeviceInitializer.class);
 
+    /*
+        调用父类initialize()方法, 最后父类多态调用到子类的此方法
+     */
     @Override
     protected Future<Void> initializeNodeInformation(@Nonnull final DeviceContext deviceContext,
                                                      final boolean switchFeaturesMandatory,

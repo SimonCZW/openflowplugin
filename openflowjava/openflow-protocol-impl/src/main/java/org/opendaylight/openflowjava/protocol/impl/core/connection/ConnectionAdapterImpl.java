@@ -70,9 +70,9 @@ public class ConnectionAdapterImpl extends AbstractConnectionAdapterStatistics i
     }
 
     /*
-        在ConnectionManagerImpl中被调用
-
-        handshake成功后,ContextChainHolderImpl创建deviceContext时, 会创建OpenflowProtocolListenerFullImpl messageListener并注册到此
+        1.在ConnectionManagerImpl.onSwitchConnected()方法中,会调用且传入的是OpenflowProtocolListenerInitialImpl对象, 此对象仅能处理hellomessage
+        2.handshake成功后, 在DeviceManagerImpl.createContext()方法中创建deviceContext时
+            会调用且传入的对象是OpenflowProtocolListenerFullImpl, 此对象能处理所有消息
     */
     @Override
     public void setMessageListener(final OpenflowProtocolListener messageListener) {
@@ -95,6 +95,9 @@ public class ConnectionAdapterImpl extends AbstractConnectionAdapterStatistics i
         this.systemListener = systemListener;
     }
 
+    /*
+        在DeviceManagerImpl.createContext()方法中创建deviceContext时，会调用且传入的对象是OpenflowProtocolListenerFullImpl
+     */
     @Override
     public void setAlienMessageListener(final AlienMessageListener alienMessageListener) {
         this.alienMessageListener = alienMessageListener;

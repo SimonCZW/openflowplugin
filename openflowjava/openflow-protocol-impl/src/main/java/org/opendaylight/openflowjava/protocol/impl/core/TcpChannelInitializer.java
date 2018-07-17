@@ -133,6 +133,9 @@ public class TcpChannelInitializer extends ProtocolChannelInitializer<SocketChan
             ofEncoder.setSerializationFactory(getSerializationFactory());
             ch.pipeline().addLast(PipelineHandlers.OF_ENCODER.name(), ofEncoder);
             // Delegates translated POJOs into MessageConsumer.
+            /*
+                处理INBOUND消息, 效果: 当switch通过连接(channel)发消息到控制器,最终会触发ConnectionAdapterImpl.consumeDeviceMessage()
+             */
             ch.pipeline().addLast(PipelineHandlers.DELEGATING_INBOUND_HANDLER.name(),
                     new DelegatingInboundHandler(connectionFacade));
             if (!tlsPresent) {

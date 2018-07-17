@@ -74,6 +74,9 @@ public class OpenflowProtocolListenerInitialImpl implements OpenflowProtocolList
         LOG.debug("NOOP: Flow-removed message during handshake phase not supported: {}", notification);
     }
 
+    /*
+        ConnectionAdapterImpl对象收到底层switch发送给控制的helle message, 就会调用此方法. （consumeDeviceMessage中)
+     */
     @Override
     public void onHelloMessage(final HelloMessage hello) {
         LOG.debug("processing HELLO.xid: {} from device {}", hello.getXid(),
@@ -88,6 +91,7 @@ public class OpenflowProtocolListenerInitialImpl implements OpenflowProtocolList
                 }
 
                 if (checkState(ConnectionContext.CONNECTION_STATE.HANDSHAKING)) {
+                    // 在handshaking过程中, 收到底层的hello，再次调用HandshakeManagerImpl.shake方法
                     final HandshakeStepWrapper handshakeStepWrapper = new HandshakeStepWrapper(
                             hello, handshakeContext.getHandshakeManager(), connectionContext.getConnectionAdapter());
                     // use up netty thread

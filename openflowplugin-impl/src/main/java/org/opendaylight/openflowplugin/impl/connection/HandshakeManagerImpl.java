@@ -104,7 +104,7 @@ public class HandshakeManagerImpl implements HandshakeManager {
         setActiveXid(ACTIVE_XID);
 
         try {
-            if (receivedHello == null) {
+            if (receivedHello == null) { // 在connectionReady()掉用时,传入的receivedHello为null
                 // first Hello sending
                 sendHelloMessage(highestVersion, getNextXid());
                 lastProposedVersion = highestVersion;

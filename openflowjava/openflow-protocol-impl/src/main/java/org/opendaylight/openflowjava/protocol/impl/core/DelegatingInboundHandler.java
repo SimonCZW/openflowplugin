@@ -38,6 +38,11 @@ public class DelegatingInboundHandler extends ChannelInboundHandlerAdapter {
         consumer = Preconditions.checkNotNull(connectionAdapter);
     }
 
+    /*
+        处理switch发送给控制器的消息.
+
+        调用的是ConnnectionAdapterImpl的父类(AbstractConnectionAdapterStatistics)方法consume, 最终会调用ConnnectionAdapterImpl.consumeDeviceMessage
+     */
     @Override
     public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
         consumer.consume((DataObject) msg);

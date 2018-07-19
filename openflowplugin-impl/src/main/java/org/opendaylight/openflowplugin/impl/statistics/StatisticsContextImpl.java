@@ -189,7 +189,14 @@ class StatisticsContextImpl<T extends OfHeader> implements StatisticsContext {
         }
 
         collectingStatType = ImmutableList.copyOf(statListForCollecting);
-        // 收集数据, 成功后回调InitialSubmitCallback
+        /*
+            收集数据, 成功后回调InitialSubmitCallback
+
+            gatherDynamicData方法:
+            1.写入收集开始时间到 FlowCapableStatisticsGatheringStatus(flow-node-inventory.yang)
+            2.判断switch是否在线(没有断连)，然后根据inita设置的收集数据列表进行数据收集(会请求switch)
+            3.写入结束时间到 FlowCapableStatisticsGatheringStatus(flow-node-inventory.yang)
+         */
         Futures.addCallback(gatherDynamicData(), new InitialSubmitCallback(), MoreExecutors.directExecutor());
     }
 
@@ -215,6 +222,11 @@ class StatisticsContextImpl<T extends OfHeader> implements StatisticsContext {
         }, MoreExecutors.directExecutor());
     }
 
+    /*
+        1.写入收集开始时间到 FlowCapableStatisticsGatheringStatus(flow-node-inventory.yang)
+        2.判断switch是否在线(没有断连)，然后根据inita设置的收集数据列表进行数据收集
+        3.写入结束时间到 FlowCapableStatisticsGatheringStatus(flow-node-inventory.yang)
+     */
     private ListenableFuture<Boolean> gatherDynamicData() {
         if (!isStatisticsPollingOn || !schedulingEnabled.get()) {
             LOG.debug("Statistics for device {} are not enabled.", getDeviceInfo().getNodeId().getValue());
@@ -223,6 +235,7 @@ class StatisticsContextImpl<T extends OfHeader> implements StatisticsContext {
 
         return this.lastDataGatheringRef.updateAndGet(future -> {
             // write start timestamp to state snapshot container
+            // 写入收集开始时间到 FlowCapableStatisticsGatheringStatus(flow-node-inventory.yang)
             StatisticsGatheringUtils.markDeviceStateSnapshotStart(deviceInfo, deviceContext);
 
             // recreate gathering future if it should be recreated
@@ -231,6 +244,7 @@ class StatisticsContextImpl<T extends OfHeader> implements StatisticsContext {
                             .immediateFuture(Boolean.TRUE) : future;
 
             // build statistics gathering future
+            // 判断switch是否在线(没有断连)，然后根据inita设置的收集数据列表进行数据收集
             final ListenableFuture<Boolean> newDataGathering = collectingStatType.stream()
                     .reduce(lastDataGathering, this::statChainFuture,
                         (listenableFuture, asyn) -> Futures.transformAsync(listenableFuture, result -> asyn,
@@ -240,6 +254,7 @@ class StatisticsContextImpl<T extends OfHeader> implements StatisticsContext {
             Futures.addCallback(newDataGathering, new FutureCallback<Boolean>() {
                 @Override
                 public void onSuccess(@Nonnull final Boolean result) {
+                    // 写入结束时间到 FlowCapableStatisticsGatheringStatus(flow-node-inventory.yang)
                     StatisticsGatheringUtils.markDeviceStateSnapshotEnd(deviceInfo, deviceContext, result);
                 }
 
@@ -257,6 +272,8 @@ class StatisticsContextImpl<T extends OfHeader> implements StatisticsContext {
 
     private ListenableFuture<Boolean> statChainFuture(final ListenableFuture<Boolean> prevFuture,
                                                       final MultipartType multipartType) {
+        // 判断switch是否存在（断连)
+        // RIP: talking to switch is over - resting in pieces.
         if (ConnectionContext.CONNECTION_STATE.RIP
                 .equals(deviceContext.getPrimaryConnectionContext().getConnectionState())) {
             final String errMsg = String
@@ -267,6 +284,7 @@ class StatisticsContextImpl<T extends OfHeader> implements StatisticsContext {
             return Futures.immediateFailedFuture(new ConnectionException(errMsg));
         }
 
+        // 根据传入的multipartType需要收集的数据类型，进行收集
         return Futures.transformAsync(prevFuture, result -> {
             LOG.debug("Status of previous stat iteration for node {}: {}", deviceInfo, result);
             LOG.debug("Stats iterating to next type for node {} of type {}", deviceInfo, multipartType);
@@ -274,6 +292,7 @@ class StatisticsContextImpl<T extends OfHeader> implements StatisticsContext {
             final boolean supported = collectingStatType.contains(multipartType);
 
             // TODO: Refactor twice sending deviceContext into gatheringStatistics
+            // 会调用StatisticsGatheringService往底层switch请求
             return supported ? StatisticsGatheringUtils
                     .gatherStatistics(onTheFly ? statisticsGatheringOnTheFlyService : statisticsGatheringService,
                                       getDeviceInfo(), multipartType, deviceContext, deviceContext, convertorExecutor,
@@ -329,6 +348,7 @@ class StatisticsContextImpl<T extends OfHeader> implements StatisticsContext {
     private final class InitialSubmitCallback implements FutureCallback<Boolean> {
         @Override
         public void onSuccess(@Nullable final Boolean result) {
+            // 表示完成初始收集信息
             contextChainMastershipWatcher
                     .onMasterRoleAcquired(deviceInfo, ContextChainMastershipState.INITIAL_GATHERING);
 

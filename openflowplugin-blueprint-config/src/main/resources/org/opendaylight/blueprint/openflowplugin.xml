@@ -24,6 +24,9 @@
     <reference id="configurationServiceFactory"
                interface="org.opendaylight.openflowplugin.api.openflow.configuration.ConfigurationServiceFactory"/>
 
+    <!--
+        在contextChainHolderImpl中被调用. 当switch在当前节点被初始化
+    -->
     <reference id="mastershipChangeServiceManager"
                interface="org.opendaylight.openflowplugin.api.openflow.mastership.MastershipChangeServiceManager"/>
 

@@ -176,7 +176,10 @@ public class RoleContextImpl implements RoleContext {
                     .setNode(new NodeRef(deviceInfo.getNodeInstanceIdentifier()))
                     .build();
 
-            // 发送rpc
+            /*
+                发送rpc.
+                会请求salRoleService -> RoleService -> OutboundQueueHandler -> connectionAdapterImpl -> switch
+             */
             final Future<RpcResult<SetRoleOutput>> setRoleOutputFuture = roleService.setRole(setRoleInput);
 
             final TimerTask timerTask = timeout -> {

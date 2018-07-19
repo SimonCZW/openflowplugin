@@ -701,8 +701,7 @@ public class DeviceContextImpl implements DeviceContext, ExtensionConverterProvi
         }
 
         /*
-            调用DeviceFlowRegistryImpl.fill()
-            应该是从ovs node对应的YANG FlowCapableNode的信息(table,flow)读取出来,写入到deviceFlowRegistryFill对象
+            调用DeviceFlowRegistryImpl.fill(), 读取ovs node的FlowCapableNode的节点
           */
         final ListenableFuture<List<com.google.common.base.Optional<FlowCapableNode>>> deviceFlowRegistryFill =
                 getDeviceFlowRegistry().fill();

@@ -30,7 +30,9 @@ public final class MastershipChangeServiceManagerImpl implements MastershipChang
     private MasterChecker masterChecker;
 
     /*
-        哪里调用????
+        源码中没有被其他任何地方调用.
+
+        猜测: 这个方法应该是被我们上层应用调用的. 用于当switch连上控制器选举出master后，触发上层应用处理
      */
     @Nonnull
     @Override
@@ -66,6 +68,7 @@ public final class MastershipChangeServiceManagerImpl implements MastershipChang
 
     @Override
     public void becomeMaster(@Nonnull final DeviceInfo deviceInfo) {
+        // 没有找到serviceGroup注册的调用，猜测是被我们上层应用调用的
         serviceGroup.forEach(mastershipChangeService -> mastershipChangeService.onBecomeOwner(deviceInfo));
     }
 
@@ -81,6 +84,7 @@ public final class MastershipChangeServiceManagerImpl implements MastershipChang
 
     @Override
     public ListenableFuture<ResultState> becomeMasterBeforeSubmittedDS(@Nonnull DeviceInfo deviceInfo) {
+        // 调用的是ReconciliationManagerImpl.onDevicePrepared. 最终会调用注册到framework的service的startReconciliation方法
         return rfService == null ? null : rfService.onDevicePrepared(deviceInfo);
     }
 

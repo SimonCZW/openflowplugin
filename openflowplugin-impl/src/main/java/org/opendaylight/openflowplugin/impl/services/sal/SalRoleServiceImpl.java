@@ -56,6 +56,7 @@ public final class SalRoleServiceImpl extends AbstractSimpleService<SetRoleInput
         return null;
     }
 
+    // roleContext中调用, 向switch请求: set role
     @Override
     public Future<RpcResult<SetRoleOutput>> setRole(final SetRoleInput input) {
         LOG.info("SetRole called with input:{}", input);
@@ -93,6 +94,7 @@ public final class SalRoleServiceImpl extends AbstractSimpleService<SetRoleInput
             final BigInteger nextGenerationId = getNextGenerationId(generationId);
             LOG.debug("nextGenerationId received from device:{} is {}",
                     getDeviceInfo().getNodeId().getValue(), nextGenerationId);
+            // 调用roleService
             final Future<RpcResult<SetRoleOutput>> submitRoleFuture =
                     roleService.submitRoleChange(role, getVersion(), nextGenerationId);
             return JdkFutureAdapters.listenInPoolThread(submitRoleFuture);

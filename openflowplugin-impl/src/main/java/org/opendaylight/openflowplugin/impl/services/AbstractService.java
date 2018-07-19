@@ -157,6 +157,7 @@ public abstract class AbstractService<I, O> {
             final OutboundQueue outboundQueue =
                     getDeviceContext().getPrimaryConnectionContext().getOutboundQueueProvider();
 
+            // 向底层switch发起请求
             if (Objects.nonNull(isComplete)) {
                 outboundQueue.commitEntry(xid.getValue(),
                                           request,

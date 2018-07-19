@@ -97,6 +97,7 @@ public class ReconciliationManagerImpl implements ReconciliationManager, Reconci
     @Override
     public ListenableFuture<ResultState> onDevicePrepared(@Nonnull DeviceInfo node) {
         LOG.debug("Triggering reconciliation for node : {}", node.getNodeId());
+        // 会调用注册到framework的service的startReconciliation方法
         return futureMap.computeIfAbsent(node, value -> reconcileNode(node));
     }
 
@@ -143,7 +144,7 @@ public class ReconciliationManagerImpl implements ReconciliationManager, Reconci
                                                                        servicesForPriority,
                                                                DeviceInfo node) {
         return Futures.transformAsync(prevFuture, prevResult -> Futures.transform(Futures.allAsList(
-                servicesForPriority.stream().map(service -> service.endReconciliation(node))
+                servicesForPriority.stream().map(service -> service.endReconciliation(node)) // 触发上层应用的endReconciliation方法
                         .collect(Collectors.toList())), results -> null, MoreExecutors.directExecutor()),
                                       MoreExecutors.directExecutor());
     }

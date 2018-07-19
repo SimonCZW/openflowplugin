@@ -301,7 +301,7 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
                         reconciliationFrameworkCallback回调是收集statistics静态数据
                             理解：如果开了reconciliationFramework, 会在contextChain完全成为master后才收集
                      */
-                    Futures.addCallback(ownershipChangeListener.becomeMasterBeforeSubmittedDS(deviceInfo),
+                    Futures.addCallback(ownershipChangeListener.becomeMasterBeforeSubmittedDS(deviceInfo), //钩子触发上层应用, 会调用ReconciliationManagerImpl.onDevicePrepared, 最终会调用注册到framework的service的startReconciliation方法
                                         reconciliationFrameworkCallback(deviceInfo, contextChain), // 回调reconciliationFramework, 收集数据
                                         MoreExecutors.directExecutor());
                 }
@@ -314,7 +314,7 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
                     到达此处, contextChain及各个context状态已被设置为WORKING_MASTER
                  */
                 LOG.info("Role MASTER was granted to device {}", deviceInfo);
-                // 注册一下 ??
+                // 钩子触发上层应用(不使用ReconciliationFramework情况下的钩子)
                 ownershipChangeListener.becomeMaster(deviceInfo);
 
                 // TODO:

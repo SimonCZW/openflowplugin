@@ -37,6 +37,7 @@ import org.opendaylight.openflowplugin.impl.common.MultipartReplyTranslatorUtil;
 import org.opendaylight.openflowplugin.impl.datastore.MultipartWriterProvider;
 import org.opendaylight.openflowplugin.openflow.md.core.sal.convertor.ConvertorExecutor;
 import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.yang.types.rev130715.DateAndTime;
+// flow-node-inventory.yang
 import org.opendaylight.yang.gen.v1.urn.opendaylight.flow.inventory.rev130819.FlowCapableNode;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.flow.inventory.rev130819.FlowCapableStatisticsGatheringStatus;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.flow.inventory.rev130819.FlowCapableStatisticsGatheringStatusBuilder;
@@ -74,7 +75,7 @@ public final class StatisticsGatheringUtils {
             final MultipartType type, final TxFacade txFacade, final DeviceRegistry registry,
             final ConvertorExecutor convertorExecutor, final MultipartWriterProvider statisticsWriterProvider,
             final ListeningExecutorService executorService) {
-        return Futures.transformAsync(statisticsGatheringService.getStatisticsOfType(
+        return Futures.transformAsync(statisticsGatheringService.getStatisticsOfType( //收集数据方法, 会调用StatisticsGatheringService往底层switch请求
            new EventIdentifier(QUEUE2_REQCTX + type.toString(), deviceInfo.getNodeId().toString()), type),
             rpcResult -> executorService.submit(() -> {
                 final boolean rpcResultIsNull = rpcResult == null;
@@ -221,7 +222,7 @@ public final class StatisticsGatheringUtils {
 
     /**
      * Writes snapshot gathering start timestamp + cleans end mark.
-     *
+     * 写入收集时间到 FlowCapableStatisticsGatheringStatus
      * @param deviceInfo device info
      * @param txFacade tx manager
      */
@@ -248,7 +249,7 @@ public final class StatisticsGatheringUtils {
 
     /**
      * Writes snapshot gathering end timestamp + outcome.
-     *
+     * 写入结束时间到 FlowCapableStatisticsGatheringStatus
      * @param deviceInfo device info
      * @param txFacade tx manager
      * @param succeeded     outcome of currently finished gathering

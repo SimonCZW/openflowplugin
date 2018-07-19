@@ -45,6 +45,9 @@ public class StatisticsGatheringService<T extends OfHeader>
         return handleServiceCall(type);
     }
 
+    /*
+        用于在上面 handleServiceCall时,往底层switch发起请求，会调用此方法构建request
+     */
     @Override
     protected OfHeader buildRequest(final Xid xid, final MultipartType input) throws ServiceException {
         return MultipartRequestInputFactory.makeMultipartRequest(xid.getValue(),

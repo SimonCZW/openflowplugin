@@ -132,6 +132,9 @@ public class ContextChainImpl implements ContextChain {
         return deviceInfo.getServiceIdentifier();
     }
 
+    /*
+        ContextChainHolderImpl.destroyContextChain()中调用
+     */
     @Override
     @SuppressWarnings("checkstyle:IllegalCatch")
     public void close() {

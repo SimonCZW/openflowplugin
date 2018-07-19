@@ -287,11 +287,12 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
         Optional.ofNullable(contextChainMap.get(deviceInfo)).ifPresent(contextChain -> {
 
             /*
-                使用ReconciliationFramework, 使用情况下不会出现INITIAL_SUBMIT状态(statisticsContextImpl中)
-                使用时,不会继续收集数据statistics
-              */
+                当使用ReconciliationFramework时，在初始化context阶段不会收集数据，就会在这里匹配进入ReconciliationFramework
+                    当ReconciliationFramework执行完成，回调时才开启收集数据continueInitializationAfterReconciliation
+                    此时就会出现INITIAL_SUBMIT状态，不再进入ReconciliationFramework，转而执行下面else逻辑
+             */
             if (ownershipChangeListener.isReconciliationFrameworkRegistered()
-                    && !ContextChainMastershipState.INITIAL_SUBMIT.equals(mastershipState)) {
+                    && !ContextChainMastershipState.INITIAL_SUBMIT.equals(mastershipState)) { //注意这里判断INITIAL_SUBMIT为了是在使用Framework情况下,先调用framework注册的服务，在下面reconciliationFrameworkCallback回调中才会重新调用持续收集数据，才会出现INITIAL_SUBMIT
                 if (contextChain.isMastered(mastershipState, true)) { //使用reconciliationFramework情况下,在isMaster()中不会设状态
                     // 几个context(deviceContext,rpcContext,statisticContext,roleContext)都初始化完成(各自instantiateServiceInstance执行完成), 才会进入此处, 节点才能成为device的master
 
@@ -302,11 +303,16 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
                             理解：如果开了reconciliationFramework, 会在contextChain完全成为master后才收集
                      */
                     Futures.addCallback(ownershipChangeListener.becomeMasterBeforeSubmittedDS(deviceInfo), //钩子触发上层应用, 会调用ReconciliationManagerImpl.onDevicePrepared, 最终会调用注册到framework的service的startReconciliation方法
-                                        reconciliationFrameworkCallback(deviceInfo, contextChain), // 回调reconciliationFramework, 收集数据
+                                        reconciliationFrameworkCallback(deviceInfo, contextChain), // 回调reconciliationFramework, 收集数据, 会触发再次调用本方法并进入下面else逻辑
                                         MoreExecutors.directExecutor());
                 }
             }
-            //  如果不使用ReconciliationFramework, 会向switch收集信息.状态INITIAL_SUBMMIT
+            /*
+                进入此else if会设置WORKING_MASTER状态.有两种情况会进入:
+                    1.如果不使用ReconciliationFramework, 在statisticsContext初始化就会直接向switch持续收集信息. 会出现状态INITIAL_SUBMMIT
+                    2.使用ReconciliationFramework, 在statisticsContext初始化时不会开启数据收集，会进入上面if判断，进入reconciliationFramework，但是不会设置WORKING_MASTER状态. 只有再最后回调reconciliationFrameworkCallback
+                        时, 才会重新调用statisticsContext开启持续收集信息，这是就会出现状态INITIAL_SUBMMIT，就会进入下面处理，即设置WORKING_MASTER状态，同时出发原生注册mastership的应用
+             */
             else if (contextChain.isMastered(mastershipState, false)) { //不使用reconciliationFramework情况下,在isMastered()方法内会直接设置contextChain及各个context状态为WORKING_MASTER
                 /*
                     几个context(deviceContext,rpcContext,statisticContext,roleContext)都初始化完成(各自instantiateServiceInstance执行完成), 才会进入此处, 节点才能成为device的master
@@ -463,6 +469,7 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
                         在statisticsContextImpl中如果没使用reconciliationFramework. statisticsContextImpl初始化实例就会收集.
                         理解：如果开了reconciliationFramework, 会在contextChain完全成为master后才收集
                      */
+                    //注意：在reconciliationFramework处理完，再调用此方法，后续会再次调用到上面的 onMasterRoleAcquired且状态为INIT_SUBMIT, 在这个情况下就会进入else if设置状态为WORKING_MASTER
                     contextChain.continueInitializationAfterReconciliation();
                 } else {
                     LOG.warn("Reconciliation framework failure for device {}", deviceInfo);

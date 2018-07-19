@@ -78,13 +78,19 @@ class RpcContextImpl implements RpcContext {
         this.tracker = new Semaphore(maxRequests, true);
     }
 
+    /*
+        在RpcContext初始化时， MdSalRegistrationUtils.registerServices实例化的rpc调用会调用此方法注册
+     */
     @Override
     public <S extends RpcService> void registerRpcServiceImplementation(final Class<S> serviceClass,
                                                                         final S serviceInstance) {
+        //  注册为routed rpc. 包括SalFlowService
         if (!rpcRegistrations.containsKey(serviceClass)) {
             final RoutedRpcRegistration<S> routedRpcReg =
                     rpcProviderRegistry.addRoutedRpcImplementation(serviceClass, serviceInstance);
+            // routed rpc的path为 nodeInstanceIdentifier
             routedRpcReg.registerPath(NodeContext.class, nodeInstanceIdentifier);
+
             rpcRegistrations.put(serviceClass, routedRpcReg);
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Registration of service {} for device {}.",

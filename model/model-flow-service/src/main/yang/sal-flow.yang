@@ -34,9 +34,29 @@ module sal-flow {
         uses types:flow-mod-removed;
     }
 
+    /* 注释 inv:node-context-ref:
+      grouping node-context-ref {
+          status deprecated;
+          description
+          "A helper grouping which contains a reference to a node classified with a node-context. This allows RPCs in other yang files to refine their input to a particular node instance.";
+
+          leaf node {
+              ext:context-reference "node-context"; // 用于routed rpc定义路由规则
+              type node-ref; //instance-identifier
+              description "A reference to a particular node.";
+          }
+      }
+
+          上面node中的：ext:context-reference "node-context";
+          用于routed rpc
+          identity node-context {
+              status deprecated;
+              description "A node-context is a classifier for node elements which allows an RPC to provide a service on behalf of a particular element in the data tree.";
+          }
+    */
     grouping node-flow {
         description "Top openflow flow structure suitable for rpc input (contains node-context).";
-        uses "inv:node-context-ref";
+        uses "inv:node-context-ref"; // 注意了这里的node-context-ref是 leaf node, 有ext:context-reference "node-context";
 
         leaf flow-table {
             type flow-table-ref;
@@ -93,7 +113,7 @@ module sal-flow {
             leaf flow-ref {
                 type types:flow-ref;
             }
-            uses node-flow;
+            uses node-flow; //带有ext:context-reference 的leaf, 用于定义routed rpc的匹配路由规则
         }
         output {
             uses tr:transaction-aware;

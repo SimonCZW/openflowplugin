@@ -105,9 +105,13 @@ public final class MdSalRegistrationUtils {
         final SalMeterServiceImpl salMeterService =
                 new SalMeterServiceImpl(rpcContext, deviceContext, convertorExecutor);
 
+        /*
+            下面注册的RPC都会被注册为routed rpc
+         */
         // register routed service instances
         rpcContext.registerRpcServiceImplementation(SalEchoService.class,
                 new SalEchoServiceImpl(rpcContext, deviceContext));
+        // 注册salFlowService
         rpcContext.registerRpcServiceImplementation(SalFlowService.class, salFlowService);
         rpcContext.registerRpcServiceImplementation(FlowCapableTransactionService.class, flowCapableTransactionService);
         rpcContext.registerRpcServiceImplementation(SalAsyncConfigService.class, salAsyncConfigService);

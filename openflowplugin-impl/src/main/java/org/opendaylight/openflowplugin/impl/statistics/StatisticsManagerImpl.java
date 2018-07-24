@@ -100,6 +100,14 @@ public class StatisticsManagerImpl implements StatisticsManager, StatisticsManag
     public StatisticsContext createContext(@Nonnull final DeviceContext deviceContext,
                                            final boolean useReconciliationFramework) {
         // 创建MultipartWriterProvider
+        /*
+         在调用底层switch去收集statistics数据时，根据switch的返回处理过程中，会根据不同的情况类型(MultipartType)
+            调用statisticsWriterProvider中不同的 writer provider写数据到operational yang.
+
+         不同的writer provider实际是对应写入到operational yang具体节点，以多态实现.
+
+         此方法在StatisticsGatheringUtils.writeStatistics中调用.
+         */
         final MultipartWriterProvider statisticsWriterProvider = MultipartWriterProviderFactory
                 .createDefaultProvider(deviceContext);
 

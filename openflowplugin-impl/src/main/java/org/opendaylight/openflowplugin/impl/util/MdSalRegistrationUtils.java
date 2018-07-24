@@ -179,6 +179,7 @@ public final class MdSalRegistrationUtils {
                 rpcContext.lookupRpcService(OpendaylightFlowStatisticsService.class));
 
         // attach delegate to flow statistics service (to cover all but aggregated stats with match filter input)
+        // 用于收集流表
         final OpendaylightFlowStatisticsServiceDelegateImpl flowStatisticsDelegate =
                 new OpendaylightFlowStatisticsServiceDelegateImpl(rpcContext, deviceContext, notificationPublishService,
                         new AtomicLong(), convertorExecutor);

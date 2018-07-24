@@ -176,6 +176,7 @@ class StatisticsContextImpl<T extends OfHeader> implements StatisticsContext {
             statListForCollecting.add(MultipartType.OFPMPMETER);
         }
 
+        // 收集流表: MultipartType.OFPMPFLOW (在openflow-types.yang定义)
         if (devState.isFlowStatisticsAvailable() && config.isIsFlowStatisticsPollingOn()) {
             statListForCollecting.add(MultipartType.OFPMPFLOW);
         }
@@ -288,7 +289,7 @@ class StatisticsContextImpl<T extends OfHeader> implements StatisticsContext {
         return Futures.transformAsync(prevFuture, result -> {
             LOG.debug("Status of previous stat iteration for node {}: {}", deviceInfo, result);
             LOG.debug("Stats iterating to next type for node {} of type {}", deviceInfo, multipartType);
-            final boolean onTheFly = MultipartType.OFPMPFLOW.equals(multipartType);
+            final boolean onTheFly = MultipartType.OFPMPFLOW.equals(multipartType);  //收集流表MultipartType.OFPMPFLOW, onTheFly意味着收集流表?
             final boolean supported = collectingStatType.contains(multipartType);
 
             // TODO: Refactor twice sending deviceContext into gatheringStatistics
@@ -311,7 +312,7 @@ class StatisticsContextImpl<T extends OfHeader> implements StatisticsContext {
                 new StatisticsPollingService(timeCounter,
                                              statisticsPollingInterval,
                                              maximumPollingDelay,
-                                             StatisticsContextImpl.this::gatherDynamicData);
+                                             StatisticsContextImpl.this::gatherDynamicData); // 定时运行gatherDynamicData方法
 
         schedulingEnabled.set(true);
         statisticsPollingService.startAsync();

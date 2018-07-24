@@ -137,7 +137,7 @@ public class DeviceFlowRegistryImpl implements DeviceFlowRegistry {
                         .flatMap(table -> table.getFlow().stream())
                         .filter(Objects::nonNull)
                         .filter(flow -> Objects.nonNull(flow.getId()))
-                        .forEach(flowConsumer);
+                        .forEach(flowConsumer); // 效果是每条读取的流都会登记到BiMap flowRegistry
 
                 // After we are done with reading from datastore, close the transaction
                 transaction.close();

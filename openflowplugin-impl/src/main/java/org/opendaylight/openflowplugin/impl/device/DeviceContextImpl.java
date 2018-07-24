@@ -678,7 +678,11 @@ public class DeviceContextImpl implements DeviceContext, ExtensionConverterProvi
                     1.将ovs node写入operational YANG
                     2.多态,调用回子类的initializeNodeInformation()方法:
                         2.1 解析capabilities, 写会deviceContext.deviceState中
-                        2.2 creates an instance of RequestContext for each type of feature: table, group, meter features and port descriptions
+                        2.2 creates an instance of RequestContext for each type of feature: table, group, meter features and port descriptions 本质就是请求switch的各个features特性
+                            请求了table: 对应rpc是 opendaylight-table-types.yng, 用于请求switch支持的table相关的哪些特性，比如支持哪些match域等
+                            group: opendaylight-group-types.yang
+                            meter: opendaylight-meter-types.yang
+                            port: opendaylight-port-types.yang
              */
             final Future<Void> initialize = initializer
                     .get()

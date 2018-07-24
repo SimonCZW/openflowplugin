@@ -109,11 +109,22 @@ public class ContextChainImpl implements ContextChain {
         }
     }
 
+    /*
+        singleton service关闭时会调用. 在本类中触发的位置是：close()方法中的`registration.close()`
+     */
     @Override
     public ListenableFuture<Void> closeServiceInstance() {
 
+        // 调用ContextChainHolderImpl.onSlaveRoleAcquired, 效果是触发注册了mastershipService的上层应用
         contextChainMastershipWatcher.onSlaveRoleAcquired(deviceInfo);
 
+        /*
+            调用各个context的closeServiceInstance方法
+                device: 关闭transactionChainManager
+                rpc: unregister rpc
+                statistics: 关闭数据收集
+                role: changeLastRoleFuture
+         */
         final ListenableFuture<List<Void>> servicesToBeClosed = Futures
                 .allAsList(Lists.reverse(contexts)
                         .stream()
@@ -143,9 +154,19 @@ public class ContextChainImpl implements ContextChain {
             return;
         }
 
+        // 设置状态CLOSED
         contextChainState.set(ContextChainState.CLOSED);
+        /*
+            设置各个阶段master状态为false:
+                registryFilling.set(false);
+                initialSubmitting.set(false);
+                initialGathering.set(false);
+                masterStateOnDevice.set(false);
+                rpcRegistration.set(false);
+         */
         unMasterMe();
 
+        // 关闭辅助连接
         // Close all connections to devices
         auxiliaryConnections.forEach(connectionContext -> connectionContext.closeConnection(false));
         auxiliaryConnections.clear();
@@ -153,6 +174,15 @@ public class ContextChainImpl implements ContextChain {
         // If we are still registered and we are not already closing, then close the registration
         if (Objects.nonNull(registration)) {
             try {
+                /*
+                    此registeration是registerServices()方法中注册为singleton service的返回
+                            registration = Objects.requireNonNull(clusterSingletonServiceProvider
+                                                .registerClusterSingletonService(this));
+
+                    结合mdsal源码此变量是对象：AbstractClusterSingletonServiceRegistration
+
+                    最终会调用自身的方法this.closeServiceInstance()方法
+                 */
                 registration.close();
                 registration = null;
                 LOG.info("Closed clustering services registration for node {}", deviceInfo);
@@ -163,10 +193,22 @@ public class ContextChainImpl implements ContextChain {
         }
 
 
+        /*
+            调用所有context的close()方法: device/statistics/rpc/role
+            会关闭/回收各个资源对象
+         */
         // Close all contexts (device, statistics, rpc)
         contexts.forEach(OFPContext::close);
         contexts.clear();
 
+        /*
+            调用各个manager.onDeviceRemoved方法: 作用都是删除manager中此device的context索引
+            DeviceManagerImpl
+            RpcManagerImpl
+            StatisticsManagerImpl
+            RoleManagerImpl
+            ContextChainHolderImpl
+         */
         // We are closing, so cleanup all managers now
         deviceRemovedHandlers.forEach(h -> h.onDeviceRemoved(deviceInfo));
         deviceRemovedHandlers.clear();

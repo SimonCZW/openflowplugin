@@ -43,6 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class RpcContextImpl implements RpcContext {
+class RpcContextImpl implements RpcContext {
     private static final Logger LOG = LoggerFactory.getLogger(RpcContextImpl.class);
     private final RpcProviderRegistry rpcProviderRegistry;
     private final MessageSpy messageSpy;

@@ -126,6 +126,7 @@ public class ConnectionContextImpl implements ConnectionContext {
         disconnectDevice(true, false);
     }
 
+    // SystemNotificationsListenerImpl监听到device断连就会触发此方法
     private void disconnectDevice(final boolean propagate,
                                   final boolean forced) {
         final String device =
@@ -174,6 +175,7 @@ public class ConnectionContextImpl implements ConnectionContext {
                 LOG.debug("Propagating connection closed event: {}, datapathId:{}.",
                         connectionAdapter.getRemoteAddress(), datapathId);
             }
+            // ContextChainHolderImpl.onDeviceDisconnected
             deviceDisconnectedHandler.onDeviceDisconnected(this);
         }
     }

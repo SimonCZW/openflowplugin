@@ -350,6 +350,9 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
         Optional.ofNullable(contextChainMap.get(deviceInfo)).ifPresent(contextChain -> destroyContextChain(deviceInfo));
     }
 
+    /*
+        触发contextChainImpl的singleton service关闭等过程的入口, 底层connectionContextImpl调用
+     */
     @Override
     public void onDeviceDisconnected(final ConnectionContext connectionContext) {
         final DeviceInfo deviceInfo = connectionContext.getDeviceInfo();
@@ -385,9 +388,15 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
     }
 
     /*
-        mdsal的EntityOwnershipListener interface
+        mdsal的EntityOwnershipListener interface, 这里监听EOS状态变化:
+        因为底层contextChainImpl是一个singleton service, 而singleton service底层是EOS,
+            且会为每个singleton service注册"org.opendaylight.mdsal.AsyncServiceCloseEntityType"类型的entity, 如果不是owner了会触发此type事件
 
-        监听类型为："org.opendaylight.mdsal.AsyncServiceCloseEntityType"的entity 状态变化
+        监听类型为："org.opendaylight.mdsal.AsyncServiceCloseEntityType"的entity 状态变化, 它是每个singleton service都会创建的一个entity type
+
+        捕获到此类型的entityOwnershipChange, 且没有owner了, 触发后续:
+            1.发送notification通知inventory树要删除node节点
+            2.除inventory yang树的node节点
      */
     @Override
     @SuppressFBWarnings("BC_UNCONFIRMED_CAST_OF_RETURN_VALUE")
@@ -399,6 +408,10 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
         // Findbugs flags a false violation for "Unchecked/unconfirmed cast" from GenericEntity to Entity hence the
         // suppression above. The suppression is temporary until EntityOwnershipChange is modified to eliminate the
         // violation.
+        /*
+            contextChainImpl是一个singleton service.
+            获取entityName是device id
+         */
         final String entityName = entityOwnershipChange
                 .getEntity()
                 .getIdentifier()
@@ -411,9 +424,11 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
                 //TODO:Remove notifications
                 final KeyedInstanceIdentifier<Node, NodeKey> nodeInstanceIdentifier =
                         DeviceStateUtil.createNodeInstanceIdentifier(new NodeId(entityName));
+                // 发送notification通知inventory树要删除节点
                 deviceManager.sendNodeRemovedNotification(nodeInstanceIdentifier);
 
                 LOG.info("Try to remove device {} from operational DS", entityName);
+                // 删除inventory yang树的node节点
                 deviceManager.removeDeviceFromOperationalDS(nodeInstanceIdentifier)
                         .get(REMOVE_DEVICE_FROM_DS_TIMEOUT, TimeUnit.MILLISECONDS);
                 LOG.info("Removing device from operational DS {} was successful", entityName);
@@ -425,12 +440,18 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
 
     /*
         效果: becomeSlave或者disconnect
+
+        上层应用调整switch master所在街道调用此方法即可
      */
     private void destroyContextChain(final DeviceInfo deviceInfo) {
-        // TODO： 具体过程?
+        // 通知注册到mastershipService的应用(原生/reconciliationFramework)
         ownershipChangeListener.becomeSlaveOrDisconnect(deviceInfo);
         Optional.ofNullable(contextChainMap.get(deviceInfo)).ifPresent(contextChain -> {
+            // 发送device删除inventory的通知
             deviceManager.sendNodeRemovedNotification(deviceInfo.getNodeInstanceIdentifier());
+            /*
+                调用ContextChainImpl的close方法, 作用: 会回收/关闭switch在ofp层次相关的所有对象, 包括singleton service contextChain的关闭, 各个context的关闭等
+             */
             contextChain.close();
         });
     }

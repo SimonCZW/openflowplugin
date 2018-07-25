@@ -108,6 +108,10 @@ public class ConnectionContextImpl implements ConnectionContext {
         this.featuresReply = newFeaturesReply;
     }
 
+    /*
+        1.idleEvent调用, 传入参数为true
+        2.在ContextChainImpl.close()方法最终调用，传入false
+     */
     @Override
     public void closeConnection(final boolean propagate) {
         disconnectDevice(propagate, true);
@@ -121,12 +125,18 @@ public class ConnectionContextImpl implements ConnectionContext {
         }
     }
 
+    // DisconnectEvent调用
     @Override
     public void onConnectionClosed() {
         disconnectDevice(true, false);
     }
 
-    // SystemNotificationsListenerImpl监听到device断连就会触发此方法
+    /*
+        SystemNotificationsListenerImpl监听到device断连就会触发此方法:
+            1.idleEvent会调用, 传入参数为true, true;
+            2.channel inactive的DisconnectEvent也会调用, 传入参数为true, false;
+            3.在ContextChainImpl.close()方法最终调用，传入false, true .目的是保证close contextChain同时会回收connection的资源(第一个参数为false，不会再次触发ContextChainHolderImpl删除ContextChain)
+     */
     private void disconnectDevice(final boolean propagate,
                                   final boolean forced) {
         final String device =
@@ -145,6 +155,7 @@ public class ConnectionContextImpl implements ConnectionContext {
 
         connectionState = ConnectionContext.CONNECTION_STATE.RIP;
 
+        // force代表: 触发disconnectDevice动作是控制器还是设备
         SessionStatistics.countEvent(device, forced
                 ? SessionStatistics.ConnectionStatus.CONNECTION_DISCONNECTED_BY_OFP
                 : SessionStatistics.ConnectionStatus.CONNECTION_DISCONNECTED_BY_DEVICE);
@@ -156,9 +167,10 @@ public class ConnectionContextImpl implements ConnectionContext {
                 getConnectionState());
 
         portStatusMessages.clear();
-        unregisterOutboundQueue();
-        closeHandshakeContext();
+        unregisterOutboundQueue(); // OutboundQueue是在createDeviceContext是传入(选举前，各控制节点均有）
+        closeHandshakeContext(); // handshake（选举前，各个控制节点均有）
 
+        // idleEvent引起, forced为true, 此时connection应该还算active, 控制器主动断开channel
         if (forced && getConnectionAdapter().isAlive()) {
             getConnectionAdapter().disconnect();
         }

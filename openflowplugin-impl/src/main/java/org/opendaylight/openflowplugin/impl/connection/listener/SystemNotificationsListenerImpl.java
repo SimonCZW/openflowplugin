@@ -85,6 +85,7 @@ public class SystemNotificationsListenerImpl implements SystemNotificationsListe
 
             try {
                 RpcResult<EchoOutput> echoReplyValue = echoReplyFuture.get(echoReplyTimeout, TimeUnit.MILLISECONDS);
+                // 当switch有回复echo证明switch在线, 重新设置为WORKING状态，且不断开连接
                 if (echoReplyValue.isSuccessful()
                         && Objects.equals(echoReplyValue.getResult().getXid(), ECHO_XID.getValue())) {
                     // 设置状态为WORKING

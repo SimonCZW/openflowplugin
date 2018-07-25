@@ -98,7 +98,7 @@ public class TcpChannelInitializer extends ProtocolChannelInitializer<SocketChan
             // 检查上一步设置的3个listener是否存在
             connectionFacade.checkListeners();
             ch.pipeline().addLast(PipelineHandlers.IDLE_HANDLER.name(),
-                    new IdleHandler(getSwitchIdleTimeout(), TimeUnit.MILLISECONDS));
+                    new IdleHandler(getSwitchIdleTimeout(), TimeUnit.MILLISECONDS)); //用于处理idle, 当switch idle就触发SwitchIdleEvent事件
             boolean tlsPresent = false;
 
             // If this channel is configured to support SSL it will only support SSL

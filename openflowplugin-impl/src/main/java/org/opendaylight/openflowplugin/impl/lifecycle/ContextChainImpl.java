@@ -213,6 +213,7 @@ public class ContextChainImpl implements ContextChain {
         deviceRemovedHandlers.forEach(h -> h.onDeviceRemoved(deviceInfo));
         deviceRemovedHandlers.clear();
 
+        // 保证关闭ConnectionContextImpl会调用ConnectionContextImpl.disconnectDevice(false, true) 回收handshakeContext等connection资源
         primaryConnection.closeConnection(false);
 
     }

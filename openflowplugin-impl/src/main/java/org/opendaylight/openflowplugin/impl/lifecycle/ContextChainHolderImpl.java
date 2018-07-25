@@ -424,7 +424,7 @@ public class ContextChainHolderImpl implements ContextChainHolder, MasterChecker
                 //TODO:Remove notifications
                 final KeyedInstanceIdentifier<Node, NodeKey> nodeInstanceIdentifier =
                         DeviceStateUtil.createNodeInstanceIdentifier(new NodeId(entityName));
-                // 发送notification通知inventory树要删除节点
+                // 发送notification通知inventory树要删除节点, 在opendaylight-inventory.yang中看到此方式不会删除节点，已被废弃Deprecated
                 deviceManager.sendNodeRemovedNotification(nodeInstanceIdentifier);
 
                 LOG.info("Try to remove device {} from operational DS", entityName);

@@ -228,6 +228,11 @@ public class DeviceManagerImpl implements DeviceManager, ExtensionConverterProvi
             NodeRemovedBuilder builder = new NodeRemovedBuilder();
             builder.setNodeRef(new NodeRef(instanceIdentifier));
             LOG.info("Publishing node removed notification for {}", instanceIdentifier.firstKeyOf(Node.class).getId());
+            /*
+                在opendaylight-inventory.yang中看到此方式不会删除节点，仅通知，已被废弃Deprecated
+
+                实际删除operational yang node位置在: ContextChainHolderImpl.ownershipChanged 方法
+             */
             notificationPublishService.offerNotification(builder.build());
         }
     }
@@ -259,6 +264,11 @@ public class DeviceManagerImpl implements DeviceManager, ExtensionConverterProvi
             NodeUpdatedBuilder builder = new NodeUpdatedBuilder();
             builder.setId(id);
             builder.setNodeRef(new NodeRef(instanceIdentifier));
+            /*
+                在opendaylight-inventory.yang中看到此方式不会新增节点，仅通知，已被废弃Deprecated
+
+                实际新增/写入operational yang node位置: 在DeviceContext.instantiateServiceInstance中调用initializer.initialize()处: AbstractDeviceInitializer.initialize()方法写入inventory node
+             */
             LOG.info("Publishing node added notification for {}", id);
 
             // node updated通知

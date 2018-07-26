@@ -95,6 +95,7 @@ abstract class AbstractConnectionAdapter implements ConnectionAdapter {
         responseCache = CacheBuilder.newBuilder().concurrencyLevel(1)
                 .expireAfterWrite(RPC_RESPONSE_EXPIRATION, TimeUnit.MINUTES).removalListener(REMOVAL_LISTENER).build();
         LOG.info("The channel outbound queue size:{}", channelOutboundQueueSize);
+        // 将ChannelOutboundQueue addLast到channel
         this.output = new ChannelOutboundQueue(channel, channelOutboundQueueSize, address);
         channel.pipeline().addLast(output);
     }
@@ -288,7 +289,7 @@ abstract class AbstractConnectionAdapter implements ConnectionAdapter {
     private <T> ListenableFuture<RpcResult<T>> enqueueMessage(final AbstractRpcListener<T> promise) {
         LOG.debug("Submitting promise {}", promise);
 
-        if (!output.enqueue(promise)) {
+        if (!output.enqueue(promise)) { // 直接将消息入队列发送, 如果队列满了会返回false
             LOG.debug("Message queue is full, rejecting execution");
             promise.failedRpc(QUEUE_FULL_EXCEPTION);
         } else {

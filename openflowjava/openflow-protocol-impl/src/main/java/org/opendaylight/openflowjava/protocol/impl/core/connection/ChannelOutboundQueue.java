@@ -100,7 +100,7 @@ final class ChannelOutboundQueue extends ChannelInboundHandlerAdapter {
          * synchronize both producers and consumers, potentially leading
          * to less throughput.
          */
-        this.queue = new LinkedBlockingQueue<>(queueDepth);
+        this.queue = new LinkedBlockingQueue<>(queueDepth); //队列深度是 channelOutboundQueueSize
         this.channel = Preconditions.checkNotNull(channel);
         this.maxWorkTime = TimeUnit.MICROSECONDS.toNanos(DEFAULT_WORKTIME_MICROS);
         this.address = address;
@@ -118,6 +118,7 @@ final class ChannelOutboundQueue extends ChannelInboundHandlerAdapter {
         LOG.trace("Enqueuing message {}", holder);
         if (queue.offer(holder)) {
             LOG.trace("Message enqueued");
+            // 消息入队列
             conditionalFlush();
             return true;
         }
@@ -129,6 +130,7 @@ final class ChannelOutboundQueue extends ChannelInboundHandlerAdapter {
     private void scheduleFlush(final EventExecutor executor) {
         if (FLUSH_SCHEDULED_UPDATER.compareAndSet(this, 0, 1)) {
             LOG.trace("Scheduling flush task");
+            // flushRunnable -> 调用this.flush()方法
             executor.execute(flushRunnable);
         } else {
             LOG.trace("Flush task is already present");
@@ -149,6 +151,7 @@ final class ChannelOutboundQueue extends ChannelInboundHandlerAdapter {
             return;
         }
 
+        // 调度flush
         scheduleFlush(channel.pipeline().lastContext().executor());
     }
 
@@ -179,6 +182,7 @@ final class ChannelOutboundQueue extends ChannelInboundHandlerAdapter {
 
             final MessageHolder<?> h = queue.poll();
             if (h == null) {
+                // 已经尽力
                 LOG.trace("The queue is completely drained");
                 break;
             }
@@ -186,6 +190,7 @@ final class ChannelOutboundQueue extends ChannelInboundHandlerAdapter {
             final GenericFutureListener<Future<Void>> l = h.takeListener();
 
             final ChannelFuture p;
+            // 写入channel
             if (address == null) {
                 p = channel.write(new MessageListenerWrapper(h.takeMessage(), l));
             } else {

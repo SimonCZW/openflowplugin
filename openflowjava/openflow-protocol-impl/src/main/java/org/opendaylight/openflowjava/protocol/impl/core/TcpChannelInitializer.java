@@ -84,7 +84,7 @@ public class TcpChannelInitializer extends ProtocolChannelInitializer<SocketChan
         allChannels.add(ch);
         ConnectionFacade connectionFacade = null;
         connectionFacade = connectionAdapterFactory.createConnectionFacade(ch, null, useBarrier(),
-                getChannelOutboundQueueSize());
+                getChannelOutboundQueueSize()); // 会为每个channel创建ChannelOutboundQueue对象，队列深度为此传入参数值. 默认值在default/legacy-openflow-connection-config.xml
         try {
             LOG.debug("Calling OF plugin: {}", getSwitchConnectionHandler());
             // 当channel建立，调用ConnectionManageImpl的onSwitchConnected方法

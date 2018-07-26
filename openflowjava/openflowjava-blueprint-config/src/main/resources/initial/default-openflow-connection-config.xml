@@ -3,6 +3,7 @@
   <port>6653</port>
   <transport-protocol>TCP</transport-protocol>
   <group-add-mod-enabled>false</group-add-mod-enabled>
+  <!-- channel-outbound-queue-size用于为每个switch连接创建的ChannelOutboundQueue对象，队列深度是此值-->
   <channel-outbound-queue-size>1024</channel-outbound-queue-size>
   <tls>
      <keystore>configuration/ssl/ctl.jks</keystore>

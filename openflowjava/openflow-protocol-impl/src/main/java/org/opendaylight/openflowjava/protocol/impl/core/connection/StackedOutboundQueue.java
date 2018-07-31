@@ -51,6 +51,11 @@ final class StackedOutboundQueue extends AbstractStackedOutboundQueue {
         }
 
         LOG.trace("Queue {} committed XID {}", this, xid);
+        /*
+            manager -> OutboundQueueManager
+            最终会调用channel的eventLoop执行flush任务:
+                OutboundQueueManager.writeMessage() 最终会把消息写入channel
+         */
         manager.ensureFlushing();
     }
 

@@ -222,6 +222,7 @@ public class ConnectionAdapterImpl extends AbstractConnectionAdapterStatistics i
 
         final AbstractOutboundQueueManager<T, ?> ret;
         if (useBarrier) {
+            // handler: OutboundQueueProviderImpl
             ret = new OutboundQueueManager<>(this, address, handler, maxQueueDepth, maxBarrierNanos);
         } else {
             LOG.warn("OutboundQueueManager without barrier is started.");
@@ -230,7 +231,9 @@ public class ConnectionAdapterImpl extends AbstractConnectionAdapterStatistics i
 
         outputManager = ret;
         /* we don't need it anymore */
+        // 从pipeline中删除创建当前对象时默认创建的 ChannelOutboundQueue
         channel.pipeline().remove(output);
+
         // OutboundQueueManager is put before DelegatingInboundHandler because otherwise channelInactive event would
         // be first processed in OutboundQueueManager and then in ConnectionAdapter (and Openflowplugin). This might
         // cause problems because we are shutting down the queue before Openflowplugin knows about it.

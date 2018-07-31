@@ -89,6 +89,7 @@ abstract class AbstractOutboundQueueManager<T extends OutboundQueueHandler, O ex
         currentQueue = initializeStackedOutboudnqueue();
         LOG.debug("Queue manager instantiated with queue {}", currentQueue);
 
+        // handler是在DeviceMananger.createContext中new的OutboundQueueProviderImpl
         handler.onConnectionQueueChanged(currentQueue);
     }
 
@@ -297,6 +298,7 @@ abstract class AbstractOutboundQueueManager<T extends OutboundQueueHandler, O ex
     private void scheduleFlush() {
         if (flushScheduled.compareAndSet(false, true)) {
             LOG.trace("Scheduling flush task on channel {}", parent.getChannel());
+            // parent: ConnectionAdapterImpl
             parent.getChannel().eventLoop().execute(flushRunnable);
         } else {
             LOG.trace("Flush task is already present on channel {}", parent.getChannel());

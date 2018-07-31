@@ -56,15 +56,21 @@ final class OutboundQueueManager<T extends OutboundQueueHandler> extends
         return new StackedOutboundQueue(this);
     }
 
+    /*
+        根据barrier时间间隔(默认500 nano seconds)调度eventLoop发送消息
+     */
     private void scheduleBarrierTimer(final long now) {
+        // 上一次发送barrier时间 + barrier时间间隔(默认500) 为下一次计划时间
         long next = lastBarrierNanos + maxBarrierNanos;
         if (next < now) {
+            // 如果已经过程了下一次时间（now已经过了），从当前时间 + barrier间隔为next发送barrier时间
             LOG.trace("Attempted to schedule barrier in the past, reset maximum)");
             next = now + maxBarrierNanos;
         }
 
         final long delay = next - now;
         LOG.trace("Scheduling barrier timer {}us from now", TimeUnit.NANOSECONDS.toMicros(delay));
+        // next-now: 在这个时间后执行barrierRunnable
         parent.getChannel().eventLoop().schedule(barrierRunnable, next - now, TimeUnit.NANOSECONDS);
         barrierTimerEnabled = true;
     }
@@ -78,7 +84,7 @@ final class OutboundQueueManager<T extends OutboundQueueHandler> extends
 
         currentQueue.commitEntry(xid, getHandler().createBarrierRequest(xid), null);
         LOG.trace("Barrier XID {} scheduled", xid);
-    }
+}
 
 
     /**
@@ -119,10 +125,12 @@ final class OutboundQueueManager<T extends OutboundQueueHandler> extends
             lastBarrierNanos = now;
         } else {
             nonBarrierMessages++;
+            // 判断累计发送了多少个消息，当梳理大于maxNonBarrierMessages强制发送一次
             if (nonBarrierMessages >= maxNonBarrierMessages) {
                 LOG.trace("Scheduled barrier request after {} non-barrier messages", nonBarrierMessages);
                 scheduleBarrierMessage();
             } else if (!barrierTimerEnabled) {
+                // 次数没累计足够, 判断barrier消息时间间隔, 发送barrier消息
                 scheduleBarrierTimer(now);
             }
         }

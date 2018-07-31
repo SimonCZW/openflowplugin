@@ -5,7 +5,7 @@
  * terms of the Eclipse Public License v1.0 which accompanies this distribution,
  * and is available at http://www.eclipse.org/legal/epl-v10.html
  */
-package org.opendaylight.openflowplugin.impl.services;
+package s;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
@@ -154,6 +154,11 @@ public abstract class AbstractService<I, O> {
             RequestContextUtil.closeRequestContextWithRpcError(requestContext,
                                                                "failed to build request input: " + ex.getMessage());
         } finally {
+            /*
+                在DeviceManagerImpl.createContext中设置. 对象为:
+                1.StackedOutboundQueue
+                2.StackedOutboundQueueNoBarrier
+             */
             final OutboundQueue outboundQueue =
                     getDeviceContext().getPrimaryConnectionContext().getOutboundQueueProvider();
 

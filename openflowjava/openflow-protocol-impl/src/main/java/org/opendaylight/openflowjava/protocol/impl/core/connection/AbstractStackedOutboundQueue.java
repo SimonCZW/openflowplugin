@@ -147,6 +147,9 @@ abstract class AbstractStackedOutboundQueue implements OutboundQueue {
             entries++;
 
             if (message != null) {
+                /*
+                    1.OutboundQueueManager.writeMessage
+                 */
                 manager.writeMessage(message, now);
             } else {
                 entry.complete(null);

@@ -154,8 +154,8 @@ public class DeviceManagerImpl implements DeviceManager, ExtensionConverterProvi
         final OutboundQueueHandlerRegistration<OutboundQueueProvider> outboundQueueHandlerRegistration =
                 connectionContext.getConnectionAdapter().registerOutboundQueueHandler(
                         outboundQueueProvider,
-                        config.getBarrierCountLimit().getValue(),
-                        TimeUnit.MILLISECONDS.toNanos(config.getBarrierIntervalTimeoutLimit().getValue()));
+                        config.getBarrierCountLimit().getValue(), // 25600
+                        TimeUnit.MILLISECONDS.toNanos(config.getBarrierIntervalTimeoutLimit().getValue())); // 500
         connectionContext.setOutboundQueueHandleRegistration(outboundQueueHandlerRegistration);
 
 

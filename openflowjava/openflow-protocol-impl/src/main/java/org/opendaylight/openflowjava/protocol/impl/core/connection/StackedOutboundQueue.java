@@ -32,8 +32,10 @@ final class StackedOutboundQueue extends AbstractStackedOutboundQueue {
     @Override
     public void commitEntry(final Long xid, final OfHeader message, final FutureCallback<OfHeader> callback,
             final Function<OfHeader, Boolean> isCompletedFunction) {
+        // 在队列中分配entry空间，根据xid来计算偏移量来分配
         final OutboundQueueEntry entry = getEntry(xid);
 
+        // 将消息和回调等封装到entry对象
         entry.commit(message, callback, isCompletedFunction);
         if (entry.isBarrier()) {
             long my = xid;

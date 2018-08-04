@@ -208,9 +208,11 @@ abstract class AbstractOutboundQueueManager<T extends OutboundQueueHandler, O ex
         return handler;
     }
 
+    // StackedOutboundQueue或者StackedOutboundQueueNoBarrier的commitEntry方法最后都会调用
     void ensureFlushing() {
         // If the channel is not writable, there's no point in waking up,
         // once we become writable, we will run a full flush
+        // parent: ConnectionAdapterImpl对象
         if (!parent.getChannel().isWritable()) {
             return;
         }
@@ -305,6 +307,7 @@ abstract class AbstractOutboundQueueManager<T extends OutboundQueueHandler, O ex
         }
     }
 
+    // 实际flush动作
     private void writeAndFlush() {
         state = PipelineState.WRITING;
 

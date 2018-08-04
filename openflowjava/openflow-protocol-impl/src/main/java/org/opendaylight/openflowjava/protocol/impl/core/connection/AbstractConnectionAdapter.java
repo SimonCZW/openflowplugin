@@ -96,6 +96,7 @@ abstract class AbstractConnectionAdapter implements ConnectionAdapter {
                 .expireAfterWrite(RPC_RESPONSE_EXPIRATION, TimeUnit.MINUTES).removalListener(REMOVAL_LISTENER).build();
         LOG.info("The channel outbound queue size:{}", channelOutboundQueueSize);
         // 将ChannelOutboundQueue addLast到channel
+        // 该OutboundQueue仅用于handshake过程中与底层的交互，当deviceContext初始化就会将其从pipeline中remove
         this.output = new ChannelOutboundQueue(channel, channelOutboundQueueSize, address);
         channel.pipeline().addLast(output);
     }
